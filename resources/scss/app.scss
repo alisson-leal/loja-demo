@@ -1,0 +1,439 @@
+// Tema da Loja Demo (identidade DevZero1): fundo azul-marinho, cartões com profundidade e
+// degradês nas cores da logo (azul #1677FF e ciano #00C8FF).
+$primary: #1677ff;
+$success: #2f855a;
+$danger: #c0392b;
+$warning: #e9a23b;
+$info: #00c8ff;
+
+$body-bg-dark: #050b1a;
+$body-color-dark: #eef4ff;
+$body-secondary-color-dark: #9fb3d1;
+$body-tertiary-bg-dark: #0f1e3a;
+$border-color-dark: rgba(255, 255, 255, .12);
+$link-color-dark: #5cc8ff;
+$link-hover-color-dark: #9ee0ff;
+
+$font-family-sans-serif: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
+$font-size-base: .95rem;
+$border-radius: .75rem;
+$table-th-font-weight: 600;
+$input-focus-border-color: #3aa0ff;
+
+@import 'bootstrap/scss/bootstrap';
+
+$sidebar-width: 268px;
+$line: rgba(255, 255, 255, .09);
+$muted: #9fb3d1;
+$surface: linear-gradient(160deg, #0f1f3d, #081329);
+$surface-solid: #0d1a33;
+$gradient-action: linear-gradient(100deg, #1565ff, #00b4f0);
+$blue-dark: #0b4fd6;
+$soft-accent: #6fc3ff;
+$green-on-dark: #5ee0a0;
+$red-on-dark: #ff8a8a;
+$deep-shadow: 0 30px 50px -28px rgba(0, 0, 0, .9);
+
+// Camada fixa em vez de background-attachment, que não funciona bem em iOS.
+body::before {
+    position: fixed;
+    z-index: -1;
+    inset: 0;
+    background:
+        radial-gradient(760px 520px at 12% 0%, rgba(22, 119, 255, .34), rgba(22, 119, 255, 0) 70%),
+        radial-gradient(820px 600px at 100% 100%, rgba(0, 200, 255, .22), rgba(0, 200, 255, 0) 70%);
+    content: '';
+    pointer-events: none;
+}
+
+option { background: $surface-solid; color: $body-color-dark; }
+
+// Leitura correta sobre fundo escuro.
+.text-danger { color: $red-on-dark !important; }
+.text-success { color: $green-on-dark !important; }
+
+/* Estrutura */
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+
+    @include media-breakpoint-up(lg) {
+        gap: 20px;
+        padding: 20px;
+    }
+}
+
+// O Bootstrap força fundo transparente no offcanvas-lg em telas grandes.
+.offcanvas-lg.app-sidebar { background: $surface !important; }
+
+.app-sidebar {
+    @include media-breakpoint-up(lg) {
+        position: sticky;
+        top: 20px;
+        flex: 0 0 $sidebar-width;
+        width: $sidebar-width;
+        height: calc(100vh - 40px);
+        overflow-y: auto;
+        scrollbar-color: rgba(255, 255, 255, .25) transparent;
+        scrollbar-width: thin;
+        border: 1px solid $line;
+        border-radius: 24px;
+        box-shadow: 0 30px 60px -24px rgba(0, 0, 0, .85);
+    }
+}
+
+.app-brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: 1rem;
+}
+
+// A logo DevZero1 tem fundo transparente e foi feita para fundo escuro: aparece direto sobre o tema.
+.app-brand-link,
+.auth-brand { display: block; }
+
+.app-brand-link { flex: 1; padding: .25rem .25rem 0; text-decoration: none; }
+.app-brand-link img { display: block; width: 100%; max-width: 200px; height: auto; margin: 0 auto; filter: drop-shadow(0 6px 18px rgba(0, 160, 255, .35)); }
+
+.app-brand-tag {
+    display: block;
+    margin-top: .35rem;
+    color: $muted;
+    font-size: .72rem;
+    letter-spacing: .08em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.auth-brand { margin-bottom: 1.25rem; text-align: center; }
+.auth-brand img { width: 300px; max-width: 100%; height: auto; filter: drop-shadow(0 8px 24px rgba(0, 160, 255, .35)); }
+
+// Faixa que identifica o ambiente de demonstração.
+.demo-banner {
+    padding: .45rem 1rem;
+    background: linear-gradient(100deg, #0b3fbf, #0090c8);
+    color: #fff;
+    font-size: .85rem;
+    text-align: center;
+}
+
+.demo-access { border: 1px dashed rgba(255, 255, 255, .25); border-radius: .75rem; padding: .75rem 1rem; font-size: .85rem; }
+
+.app-nav { padding: 0 .75rem 1rem; }
+
+// No celular o menu é um offcanvas: a logo fica fixa e só a lista rola.
+@include media-breakpoint-down(lg) {
+    .app-brand { flex-shrink: 0; }
+
+    .app-nav {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+}
+
+.app-nav-title {
+    margin: 1rem .75rem .25rem;
+    color: $muted;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.app-nav-link {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    min-height: 44px;
+    padding: .4rem .85rem;
+    border-radius: 14px;
+    color: #c9d7ee;
+    font-weight: 500;
+    text-decoration: none;
+
+    &:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+
+    &.active {
+        background: $gradient-action;
+        box-shadow: 0 10px 26px -6px rgba(22, 119, 255, .7);
+        color: #fff;
+        font-weight: 600;
+    }
+}
+
+.app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.app-topbar {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .75rem 1rem;
+
+    @include media-breakpoint-up(lg) { padding: .25rem .4rem 1rem; }
+}
+
+.app-page-title { margin: 0; font-size: 1.45rem; font-weight: 700; }
+
+.app-content {
+    flex: 1;
+    padding: 0 1rem 1rem;
+
+    @include media-breakpoint-up(lg) { padding: 0; }
+}
+
+/* Componentes do Bootstrap ajustados ao tema */
+.card {
+    border: 1px solid $line;
+    border-radius: 22px;
+    background: $surface;
+    box-shadow: $deep-shadow;
+}
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-border-color: rgba(255, 255, 255, .1);
+
+    margin-bottom: 0;
+}
+
+.table th { color: $muted; font-size: .8rem; }
+
+// Mantém os rótulos ocultos de leitor de tela dentro da área rolável.
+.table-responsive { position: relative; }
+
+.form-control,
+.form-select {
+    border-color: rgba(255, 255, 255, .16);
+    background-color: rgba(255, 255, 255, .06);
+
+    &:focus { background-color: rgba(255, 255, 255, .09); }
+}
+
+.form-check-input { border-color: rgba(255, 255, 255, .35); background-color: rgba(255, 255, 255, .06); }
+.form-check-input:checked { border-color: #3aa0ff; background-color: $primary; }
+
+.btn-primary {
+    border: 0;
+    background: $gradient-action;
+    box-shadow: 0 10px 26px -6px rgba(22, 119, 255, .75);
+
+    &:hover,
+    &:focus-visible,
+    &:active { filter: brightness(1.12); background: $gradient-action !important; }
+}
+
+.btn-light {
+    --bs-btn-color: #{$body-color-dark};
+    --bs-btn-bg: rgba(255, 255, 255, .08);
+    --bs-btn-border-color: rgba(255, 255, 255, .12);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: rgba(255, 255, 255, .15);
+    --bs-btn-hover-border-color: rgba(255, 255, 255, .2);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: rgba(255, 255, 255, .18);
+    --bs-btn-active-border-color: rgba(255, 255, 255, .2);
+}
+
+@mixin outline-on-dark($color, $hover-bg) {
+    --bs-btn-color: #{$color};
+    --bs-btn-border-color: #{$color};
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #{$hover-bg};
+    --bs-btn-hover-border-color: #{$hover-bg};
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #{$hover-bg};
+    --bs-btn-active-border-color: #{$hover-bg};
+}
+
+.btn-outline-primary { @include outline-on-dark($soft-accent, $primary); }
+.btn-outline-danger { @include outline-on-dark($red-on-dark, $danger); }
+.btn-outline-success { @include outline-on-dark($green-on-dark, $success); }
+
+.dropdown-menu {
+    --bs-dropdown-bg: #{$surface-solid};
+    --bs-dropdown-border-color: rgba(255, 255, 255, .12);
+    --bs-dropdown-link-hover-bg: rgba(255, 255, 255, .08);
+
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, .8);
+}
+
+.list-group {
+    --bs-list-group-bg: #{$surface-solid};
+    --bs-list-group-border-color: rgba(255, 255, 255, .12);
+    --bs-list-group-action-hover-bg: rgba(255, 255, 255, .08);
+}
+
+.pagination {
+    --bs-pagination-bg: rgba(255, 255, 255, .06);
+    --bs-pagination-border-color: rgba(255, 255, 255, .12);
+    --bs-pagination-hover-bg: rgba(255, 255, 255, .12);
+    --bs-pagination-disabled-bg: transparent;
+    --bs-pagination-active-bg: #{$primary};
+    --bs-pagination-active-border-color: #{$primary};
+}
+
+/* Painel */
+.stat-card {
+    border: 1px solid transparent;
+    background: linear-gradient(160deg, #10213f, #0a152b) padding-box, linear-gradient(135deg, #1677ff, #00d4ff) border-box;
+    box-shadow: 0 24px 40px -22px #1677ff, 0 12px 24px -14px rgba(0, 0, 0, .8);
+
+    .card-body { display: flex; align-items: center; gap: .85rem; }
+}
+
+.stat-card-blue {
+    background: linear-gradient(160deg, #10213f, #0a152b) padding-box, linear-gradient(135deg, #00d4ff, #0b4fd6) border-box;
+    box-shadow: 0 24px 40px -22px #00c8ff, 0 12px 24px -14px rgba(0, 0, 0, .8);
+}
+
+.stat-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 3rem;
+    height: 3rem;
+    border-radius: 15px;
+    background: $gradient-action;
+    color: #fff;
+    font-size: 1.25rem;
+
+    &.stat-icon-blue { background: linear-gradient(140deg, $blue-dark, #00a3d9); }
+}
+
+.stat-card .card-body > div { min-width: 0; }
+.stat-value { overflow-wrap: anywhere; font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.stat-label { color: $muted; font-size: .82rem; }
+
+.chart-box { position: relative; height: 280px; }
+
+.activity-list li {
+    display: flex;
+    flex-direction: column;
+    padding: .5rem 0;
+    border-bottom: 1px solid $line;
+
+    &:last-child { border-bottom: 0; }
+}
+
+/* Formulários e listas */
+.permission-group {
+    height: 100%;
+    padding: .75rem 1rem;
+    border: 1px solid $line;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .03);
+
+    legend { float: none; width: auto; margin: 0 0 .25rem; font-size: .92rem; font-weight: 600; }
+}
+
+// Alinha botões e caixas com os campos que têm rótulo acima, em telas médias ou maiores.
+@include media-breakpoint-up(md) {
+    .form-actions-aligned { padding-top: 2rem; }
+    .form-check-aligned { padding-top: 2.4rem; }
+}
+
+.value-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: .1rem .35rem .1rem .65rem;
+    border-radius: 1rem;
+    background: rgba(22, 119, 255, .2);
+    font-size: .85rem;
+
+    button { border: 0; background: transparent; color: $red-on-dark; padding: 0 .1rem; line-height: 1; }
+}
+
+.product-thumb {
+    display: block;
+    width: 44px;
+    height: 44px;
+    border-radius: .5rem;
+    object-fit: cover;
+}
+
+.product-thumb-empty {
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, .08);
+    color: $muted;
+}
+
+.image-tile {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    width: 112px;
+    padding: .35rem;
+    border: 2px solid $line;
+    border-radius: 14px;
+
+    img { width: 100%; height: 96px; object-fit: cover; border-radius: .5rem; }
+}
+
+.image-tile-primary { border-color: #3aa0ff; }
+
+.variant-grid input.form-control { min-width: 96px; }
+.grid-small { max-width: 90px; min-width: 70px; }
+.grid-medium { max-width: 130px; min-width: 96px; }
+
+/* Clientes */
+.segment-form { flex: 1 1 280px; max-width: 420px; }
+.value-chip .segment-apply { color: $body-color-dark; padding: .2rem .2rem .2rem 0; }
+
+/* Relatórios: impressão em papel branco, sem menu nem botões */
+@media print {
+    .app-sidebar, .app-topbar .btn, .app-topbar .dropdown, .no-print { display: none !important; }
+    html, body, .app-shell, .app-main, .app-content, .card {
+        background: #fff !important;
+        color: #000 !important;
+        box-shadow: none !important;
+    }
+    .card { border: 1px solid #ccc !important; break-inside: avoid; }
+    .table, .table > :not(caption) > * > * { color: #000 !important; background: transparent !important; }
+    .app-page-title { color: #000 !important; -webkit-text-fill-color: #000 !important; }
+    .stat-label, .text-body-secondary, .form-text { color: #333 !important; }
+    a { color: #000 !important; text-decoration: none !important; }
+}
+
+.report-total td, .report-total th { font-weight: 700; border-top: 2px solid $line; }
+
+/* Marketing: texto da mensagem como o cliente vai receber */
+.message-preview {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    padding: .75rem 1rem;
+    border: 1px solid $line;
+    border-radius: .75rem;
+    background: rgba(255, 255, 255, .04);
+}
+
+/* Frente de caixa */
+.pos-qty { width: 118px; }
+
+.pos-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: .5rem;
+    padding-top: .5rem;
+    border-top: 1px solid $line;
+    font-size: 1.1rem;
+
+    strong { font-size: 1.75rem; }
+}
+
+/* Login e recuperação de senha */
+.auth-page {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 16px;
+}
+
+.auth-card { width: 100%; max-width: 400px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .9), 0 0 60px -20px rgba(22, 119, 255, .5); }
+.auth-card .card-body { padding: 2rem; }

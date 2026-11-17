@@ -1,0 +1,42 @@
+<?php
+
+namespace App\Livewire\Stock;
+
+use App\Models\ProductVariant;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\View\View;
+use Livewire\Attributes\Locked;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+use Livewire\WithPagination;
+
+#[Title('Detalhe do SKU')]
+class VariantDetail extends Component
+{
+    use WithPagination;
+
+    #[Locked]
+    public int $variantId;
+
+    public function mount($variant): void
+    {
+        Gate::authorize('estoque.ver');
+        $this->variantId = ProductVariant::findOrFail($variant)->id;
+    }
+
+    public function render(): View
+    {
+        $variant = ProductVariant::with(['product', 'values.attribute'])->findOrFail($this->variantId);
+        $canSeeCost = Auth::user()->can('produtos.ver_custo');
+
+        return view('livewire.stock.variant-detail', [
+            'variant' => $variant,
+            'movements' => $variant->movements()->with('user:id,name')->latest('id')->paginate(15),
+            'canSeeCost' => $canSeeCost,
+            'costs' => $canSeeCost
+                ? $variant->costHistory()->with(['user:id,name', 'supplier:id,name'])->latest('id')->limit(20)->get()
+                : collect(),
+        ]);
+    }
+}
