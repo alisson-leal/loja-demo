@@ -2,14 +2,14 @@
 # Cria o .env de produção na VPS. Roda uma única vez, na instalação.
 #
 # Uso (como usuário do sistema):
-#   sudo -u lelekids bash /var/www/lelekids/app/deploy/configurar-env.sh DOMINIO EMAIL_DO_ADMIN
+#   sudo -u lojademo bash /var/www/lojademo/app/deploy/configurar-env.sh DOMINIO EMAIL_DO_ADMIN
 #
 # A senha do banco é lida de ../.db-password (criado na preparação da VPS),
 # gravada no .env e o arquivo é apagado em seguida.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DOMINIO="${1:?Informe o domínio, ex.: sistema.lelekidsmodas.com.br}"
+DOMINIO="${1:?Informe o domínio, ex.: lojademo.demo.devzero1.com.br}"
 ADMIN_EMAIL="${2:?Informe o e-mail do administrador}"
 ARQ_SENHA="../.db-password"
 

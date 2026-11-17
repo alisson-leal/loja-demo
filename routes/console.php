@@ -102,6 +102,6 @@ Schedule::command('auth:clear-resets')->daily();
 
 // Demonstração: volta aos dados fictícios originais uma vez por dia.
 if (config('loja.demo.enabled')) {
-    Schedule::command('demo:resetar --force')->dailyAt(config('loja.demo.reset_at'))->withoutOverlapping(60);
+    Schedule::command('demo:resetar --force')->dailyAt(config('loja.demo.reset_at'))->withoutOverlapping(60)->runInBackground();
 }
 Schedule::command('queue:prune-failed --hours=720')->daily();
