@@ -3,7 +3,7 @@
 
     <div class="card mb-3">
         <div class="card-body">
-            <h2 class="h6 mb-3">Abrir inventário</h2>
+            <h2 class="h6 mb-3">Abrir inventário @if ($multiple)<span class="text-body-secondary fw-normal">em {{ $storeName }}</span>@endif</h2>
             <form wire:submit="open" class="row g-3 align-items-start" novalidate>
                 <div class="col-12 col-md-4">
                     <label for="categoryId" class="form-label">Abrangência</label>
@@ -31,6 +31,7 @@
                     <tr>
                         <th scope="col">Número</th>
                         <th scope="col">Abertura</th>
+                        @if ($multiple)<th scope="col">Loja</th>@endif
                         <th scope="col">Abrangência</th>
                         <th scope="col">Itens</th>
                         <th scope="col">Responsável</th>
@@ -43,6 +44,7 @@
                         <tr wire:key="inventory-{{ $inventory->id }}">
                             <td>#{{ $inventory->id }}</td>
                             <td class="text-nowrap">{{ $inventory->created_at->format('d/m/Y H:i') }}</td>
+                            @if ($multiple)<td>{{ $inventory->store?->name }}</td>@endif
                             <td>{{ $inventory->category?->name ?? 'Toda a loja' }}</td>
                             <td>{{ $inventory->items_count }}</td>
                             <td>{{ $inventory->opener->name }}</td>
@@ -50,7 +52,7 @@
                             <td class="text-end"><a href="{{ route('stock.inventory', $inventory->id) }}" class="btn btn-sm btn-outline-primary">{{ $inventory->isOpen() ? 'Contar' : 'Ver' }}</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="text-center text-body-secondary py-4">Nenhum inventário realizado.</td></tr>
+                        <tr><td colspan="8" class="text-center text-body-secondary py-4">Nenhum inventário realizado.</td></tr>
                     @endforelse
                 </tbody>
             </table>

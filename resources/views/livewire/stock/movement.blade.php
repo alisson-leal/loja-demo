@@ -8,7 +8,7 @@
                     <div class="d-flex justify-content-between align-items-start gap-2">
                         <div>
                             <h2 class="h6 mb-1">{{ $variant->fullName() }}</h2>
-                            <div class="small text-body-secondary">SKU {{ $variant->sku }} · saldo {{ $variant->stock_on_hand }} · disponível <strong id="available">{{ $variant->available() }}</strong></div>
+                            <div class="small text-body-secondary">SKU {{ $variant->sku }} · saldo nesta loja {{ $variant->stockIn()['on_hand'] }} · disponível <strong id="available">{{ $variant->availableIn() }}</strong></div>
                         </div>
                         <button type="button" class="btn btn-sm btn-light" wire:click="clearVariant">Trocar</button>
                     </div>

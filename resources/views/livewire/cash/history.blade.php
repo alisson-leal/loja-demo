@@ -3,7 +3,8 @@
     <x-flash />
 
     @if ($seesAll)
-        <div class="row mb-3">
+        <div class="row g-2 mb-3">
+            <x-store-filter :options="$storeOptions" class="col-12 col-md-4" />
             <div class="col-12 col-md-4">
                 <label for="filter-user" class="form-label">Operador</label>
                 <select id="filter-user" class="form-select" wire:model.live="userId">
@@ -23,6 +24,7 @@
                 <thead>
                     <tr>
                         <th scope="col">Caixa</th>
+                        @if ($multiple)<th scope="col">Loja</th>@endif
                         <th scope="col">Operador</th>
                         <th scope="col">Abertura</th>
                         <th scope="col">Fechamento</th>
@@ -36,6 +38,7 @@
                     @forelse ($sessions as $session)
                         <tr wire:key="session-{{ $session->id }}">
                             <td>#{{ $session->id }}</td>
+                            @if ($multiple)<td>{{ $session->store?->name }}</td>@endif
                             <td>{{ $session->user->name }}</td>
                             <td class="text-nowrap">{{ $session->opened_at->format('d/m/Y H:i') }}</td>
                             <td class="text-nowrap">
@@ -51,7 +54,7 @@
                             <td class="text-end"><a href="{{ route('cash.report', $session->id) }}" class="btn btn-sm btn-outline-primary">Ver</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="text-center text-body-secondary py-4">Nenhum caixa registrado.</td></tr>
+                        <tr><td colspan="9" class="text-center text-body-secondary py-4">Nenhum caixa registrado.</td></tr>
                     @endforelse
                 </tbody>
             </table>

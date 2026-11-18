@@ -124,10 +124,19 @@
             @can('estoque.inventario')
                 <x-nav-link route="stock.inventories" icon="clipboard-check" active="stock.inventor*">Inventário</x-nav-link>
             @endcan
+            @if (\App\Support\CurrentStore::multiple())
+                @canany(['estoque.transferir', 'estoque.ver'])
+                    @php($incomingTransfers = \App\Models\StockTransfer::where('status', 'in_transit')->where('to_store_id', \App\Support\CurrentStore::id())->count())
+                    <x-nav-link route="stock.transfers" icon="truck" active="stock.transfers*">Transferências @if ($incomingTransfers > 0)<span class="badge rounded-pill text-bg-warning ms-1">{{ $incomingTransfers }}</span>@endif</x-nav-link>
+                @endcanany
+            @endif
 
-            @canany(['usuarios.ver', 'perfis.ver', 'auditoria.ver'])
+            @canany(['usuarios.ver', 'perfis.ver', 'auditoria.ver', 'lojas.gerir'])
                 <p class="app-nav-title">Administração</p>
             @endcanany
+            @can('lojas.gerir')
+                <x-nav-link route="stores.index" icon="shop-window">Lojas</x-nav-link>
+            @endcan
             @can('usuarios.ver')
                 <x-nav-link route="users.index" icon="people" active="users.*">Usuários</x-nav-link>
             @endcan
@@ -157,7 +166,29 @@
             </button>
             <h1 class="app-page-title">{{ $title ?? 'Painel' }}</h1>
 
-            <div class="dropdown ms-auto">
+            @php($myStores = \App\Support\CurrentStore::multiple() ? \App\Support\CurrentStore::allowed(auth()->user()) : collect())
+            @if ($myStores->isNotEmpty())
+                @php($currentStoreId = \App\Support\CurrentStore::id())
+                <div class="dropdown ms-auto">
+                    <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="store-switcher" @disabled($myStores->count() === 1)>
+                        <i class="bi bi-shop" aria-hidden="true"></i>
+                        <span class="d-none d-sm-inline">{{ $myStores->firstWhere('id', $currentStoreId)?->name }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text small text-body-secondary">Trabalhando na loja</span></li>
+                        @foreach ($myStores as $myStore)
+                            <li>
+                                <form method="POST" action="{{ route('stores.switch', $myStore->id) }}">
+                                    @csrf
+                                    <button type="submit" @class(['dropdown-item', 'active' => $myStore->id === $currentStoreId])>{{ $myStore->name }}</button>
+                                </form>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <div @class(['dropdown', 'ms-auto' => $myStores->isEmpty()])>
                 <button class="btn btn-light dropdown-toggle app-user" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-person-circle" aria-hidden="true"></i>
                     <span class="d-none d-sm-inline">{{ auth()->user()->name }}</span>

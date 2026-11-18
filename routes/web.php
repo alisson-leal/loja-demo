@@ -7,6 +7,7 @@ use App\Http\Controllers\LabelPrintController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SaleReceiptController;
 use App\Http\Controllers\SalesPrintController;
+use App\Http\Controllers\StoreSwitchController;
 use App\Http\Controllers\UnsubscribeController;
 use App\Livewire\Account\ChangePassword;
 use App\Livewire\Audit\Index as AuditIndex;
@@ -57,7 +58,10 @@ use App\Livewire\Stock\InventoryCount;
 use App\Livewire\Stock\InventoryIndex;
 use App\Livewire\Stock\Labels;
 use App\Livewire\Stock\Movement as StockMovementForm;
+use App\Livewire\Stock\TransferForm;
+use App\Livewire\Stock\Transfers;
 use App\Livewire\Stock\VariantDetail;
+use App\Livewire\Stores\Index as StoreIndex;
 use App\Livewire\Suppliers\Form as SupplierForm;
 use App\Livewire\Suppliers\Index as SupplierIndex;
 use App\Livewire\Users\Form as UserForm;
@@ -91,6 +95,11 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/', Dashboard::class)->name('dashboard');
     Route::livewire('/minha-senha', ChangePassword::class)->name('account.password');
     Route::livewire('/sessoes', SessionIndex::class)->name('sessions.index');
+
+    Route::post('/loja/{store}/trabalhar', StoreSwitchController::class)->whereNumber('store')->name('stores.switch');
+    Route::livewire('/lojas', StoreIndex::class)->middleware('can:lojas.gerir')->name('stores.index');
+    Route::livewire('/estoque/transferencias', Transfers::class)->name('stock.transfers');
+    Route::livewire('/estoque/transferencias/nova', TransferForm::class)->middleware('can:estoque.transferir')->name('stock.transfers.create');
 
     Route::livewire('/usuarios', UserIndex::class)->middleware('can:usuarios.ver')->name('users.index');
     Route::livewire('/usuarios/novo', UserForm::class)->middleware('can:usuarios.criar')->name('users.create');

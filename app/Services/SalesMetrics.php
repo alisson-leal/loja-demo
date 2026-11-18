@@ -20,6 +20,17 @@ use Illuminate\Support\Facades\DB;
  */
 class SalesMetrics
 {
+    /** Loja filtrada; null é a rede inteira. */
+    private ?int $storeId = null;
+
+    public function forStore(?int $storeId): static
+    {
+        $copy = clone $this;
+        $copy->storeId = $storeId;
+
+        return $copy;
+    }
+
     /**
      * @return array{today: int, month: int, period: int, count: int, ticket: int, previous: int, variation: ?float}
      */
@@ -72,6 +83,7 @@ class SalesMetrics
             ->where('sales.status', Sale::COMPLETED)
             ->whereBetween('sales.created_at', $this->range($from, $to))
             ->when($userId, fn (Builder $query) => $query->where('sales.user_id', $userId))
+            ->when($this->storeId, fn (Builder $query) => $query->where('sales.store_id', $this->storeId))
             ->groupBy('payment_methods.id', 'payment_methods.name')
             ->orderByDesc(DB::raw('SUM(sale_payments.amount)'))
             ->selectRaw('payment_methods.name as name, SUM(sale_payments.amount) as total')
@@ -86,6 +98,7 @@ class SalesMetrics
             ->where('sales.status', Sale::COMPLETED)
             ->whereBetween('sales.created_at', $this->range($from, $to))
             ->when($userId, fn (Builder $query) => $query->where('sales.user_id', $userId))
+            ->when($this->storeId, fn (Builder $query) => $query->where('sales.store_id', $this->storeId))
             ->when($categoryId, fn (Builder $query) => $query
                 ->join('product_variants', 'product_variants.id', '=', 'sale_items.product_variant_id')
                 ->join('products', 'products.id', '=', 'product_variants.product_id')
@@ -102,6 +115,7 @@ class SalesMetrics
     {
         return Sale::with(['user:id,name', 'customer:id,name'])
             ->when($userId, fn (Builder $query) => $query->where('user_id', $userId))
+            ->inStore($this->storeId)
             ->latest('id')
             ->limit($limit)
             ->get();
@@ -112,6 +126,7 @@ class SalesMetrics
         $returns = SaleReturn::query()
             ->whereBetween('created_at', $this->range($from, $to))
             ->when($userId, fn (Builder $query) => $query->whereHas('sale', fn (Builder $sale) => $sale->where('user_id', $userId)))
+            ->when($this->storeId, fn (Builder $query) => $query->whereHas('sale', fn (Builder $sale) => $sale->where('store_id', $this->storeId)))
             ->sum('total');
 
         return $this->grossCents($from, $to, $userId) - Money::toCents($returns);
@@ -127,7 +142,8 @@ class SalesMetrics
         return Sale::query()
             ->where('status', Sale::COMPLETED)
             ->whereBetween('created_at', $this->range($from, $to))
-            ->when($userId, fn (Builder $query) => $query->where('user_id', $userId));
+            ->when($userId, fn (Builder $query) => $query->where('user_id', $userId))
+            ->inStore($this->storeId);
     }
 
     /** @return array{CarbonInterface, CarbonInterface} */

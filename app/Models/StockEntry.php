@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class StockEntry extends Model
 {
-    protected $fillable = ['supplier_id', 'document_number', 'notes', 'user_id'];
+    use BelongsToStore;
+
+    protected $fillable = ['store_id', 'supplier_id', 'document_number', 'notes', 'user_id'];
 
     public function supplier(): BelongsTo
     {

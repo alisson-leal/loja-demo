@@ -21,6 +21,22 @@ use Illuminate\Support\Facades\DB;
  */
 class FinanceReports
 {
+    /** Loja filtrada nos relatórios de vendas e resultado; null é a rede inteira. */
+    private ?int $storeId = null;
+
+    public function forStore(?int $storeId): static
+    {
+        $copy = clone $this;
+        $copy->storeId = $storeId;
+
+        return $copy;
+    }
+
+    private function salesFilter(): \Closure
+    {
+        return fn ($query) => $query->when($this->storeId, fn ($q) => $q->where('sales.store_id', $this->storeId));
+    }
+
     /**
      * Fluxo de caixa diário: o que entrou e saiu (realizado) e o que está
      * previsto para entrar e sair no período.
@@ -77,14 +93,15 @@ class FinanceReports
     public function salesSummary(CarbonInterface $from, CarbonInterface $to): array
     {
         $range = $this->range($from, $to);
-        $sales = Sale::where('status', Sale::COMPLETED)->whereBetween('created_at', $range);
+        $sales = Sale::where('status', Sale::COMPLETED)->whereBetween('created_at', $range)->inStore($this->storeId);
 
         $gross = Money::toCents((clone $sales)->sum('total'));
         $discounts = Money::toCents((clone $sales)->sum('discount_total'));
         $count = (clone $sales)->count();
         $items = (int) SaleItem::whereIn('sale_id', (clone $sales)->select('id'))->sum('quantity');
-        $returns = Money::toCents(SaleReturn::whereBetween('created_at', $range)->sum('total'));
-        $cancelled = Sale::where('status', Sale::CANCELLED)->whereBetween('created_at', $range)->count();
+        $returns = Money::toCents(SaleReturn::whereBetween('created_at', $range)
+            ->when($this->storeId, fn ($q) => $q->whereHas('sale', fn ($s) => $s->where('store_id', $this->storeId)))->sum('total'));
+        $cancelled = Sale::where('status', Sale::CANCELLED)->whereBetween('created_at', $range)->inStore($this->storeId)->count();
 
         return [
             'gross' => $gross,
@@ -110,6 +127,7 @@ class FinanceReports
                 'fees', 'fees.sale_payment_id', '=', 'sale_payments.id')
             ->where('sales.status', Sale::COMPLETED)
             ->whereBetween('sales.created_at', $this->range($from, $to))
+            ->tap($this->salesFilter())
             ->groupBy('payment_methods.id', 'payment_methods.name')
             ->orderByDesc(DB::raw('SUM(sale_payments.amount)'))
             ->selectRaw('payment_methods.name as name, COUNT(*) as payments, SUM(sale_payments.amount) as gross, COALESCE(SUM(fees.fee), 0) as fee')
@@ -130,6 +148,7 @@ class FinanceReports
             ->join('users', 'users.id', '=', 'sales.user_id')
             ->where('sales.status', Sale::COMPLETED)
             ->whereBetween('sales.created_at', $this->range($from, $to))
+            ->tap($this->salesFilter())
             ->groupBy('users.id', 'users.name')
             ->orderByDesc(DB::raw('SUM(sales.total)'))
             ->selectRaw('users.name as name, COUNT(*) as sales, SUM(sales.total) as total')
@@ -187,23 +206,28 @@ class FinanceReports
 
         $soldCost = (float) SaleItem::join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sales.status', Sale::COMPLETED)->whereBetween('sales.created_at', $range)
+            ->tap($this->salesFilter())
             ->sum(DB::raw('sale_items.unit_cost * sale_items.quantity'));
         $returnedCost = (float) DB::table('sale_return_items')
             ->join('sale_returns', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
             ->join('sale_items', 'sale_items.id', '=', 'sale_return_items.sale_item_id')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->whereBetween('sale_returns.created_at', $range)
+            ->tap($this->salesFilter())
             ->sum(DB::raw('sale_items.unit_cost * sale_return_items.quantity'));
         $cost = Money::toCents($soldCost) - Money::toCents($returnedCost);
 
         $fees = Money::toCents(Receivable::join('sales', 'sales.id', '=', 'receivables.sale_id')
             ->where('receivables.status', '!=', Receivable::CANCELLED)
             ->whereBetween('sales.created_at', $range)
+            ->tap($this->salesFilter())
             ->sum('receivables.fee_amount'));
 
         $expenses = Payable::query()
             ->join('expense_categories', 'expense_categories.id', '=', 'payables.expense_category_id')
             ->where('payables.status', '!=', Payable::CANCELLED)
             ->whereBetween('payables.due_date', [$from->toDateString(), $to->toDateString()])
+            ->when($this->storeId, fn ($q) => $q->where('payables.store_id', $this->storeId))
             ->where(fn ($q) => $q->whereNull('expense_categories.system_key')
                 ->orWhereNotIn('expense_categories.system_key', [ExpenseCategory::MERCHANDISE, ExpenseCategory::REFUNDS]))
             ->groupBy('expense_categories.id', 'expense_categories.name')
@@ -218,13 +242,16 @@ class FinanceReports
             ->where('expense_categories.system_key', ExpenseCategory::MERCHANDISE)
             ->where('payables.status', '!=', Payable::CANCELLED)
             ->whereBetween('payables.due_date', [$from->toDateString(), $to->toDateString()])
+            ->when($this->storeId, fn ($q) => $q->where('payables.store_id', $this->storeId))
             ->sum('payables.amount'));
 
         // Multa e juros recebidos no crediário: receita financeira do período.
-        $interest = Money::toCents(Receivable::where('status', Receivable::RECEIVED)
-            ->whereNotNull('received_amount')
-            ->whereBetween('received_at', [$from->toDateString(), $to->toDateString()])
-            ->sum(DB::raw('received_amount - net_amount')));
+        $interest = Money::toCents(Receivable::join('sales', 'sales.id', '=', 'receivables.sale_id')
+            ->where('receivables.status', Receivable::RECEIVED)
+            ->whereNotNull('receivables.received_amount')
+            ->whereBetween('receivables.received_at', [$from->toDateString(), $to->toDateString()])
+            ->tap($this->salesFilter())
+            ->sum(DB::raw('receivables.received_amount - receivables.net_amount')));
 
         $grossProfit = $summary['net'] - $cost - $fees;
         $expenseTotal = $expenses->sum('total');
@@ -288,7 +315,8 @@ class FinanceReports
             ->join('product_variants', 'product_variants.id', '=', 'sale_items.product_variant_id')
             ->join('products', 'products.id', '=', 'product_variants.product_id')
             ->where('sales.status', Sale::COMPLETED)
-            ->whereBetween('sales.created_at', $this->range($from, $to));
+            ->whereBetween('sales.created_at', $this->range($from, $to))
+            ->tap($this->salesFilter());
     }
 
     /** Quantidade, receita e custo líquidos de devoluções. */

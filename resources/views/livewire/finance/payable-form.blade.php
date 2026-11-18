@@ -25,6 +25,18 @@
                     </select>
                     @error('supplierId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
+                @if ($stores->isNotEmpty())
+                    <div class="col-12 col-md-3">
+                        <label for="storeId" class="form-label">Loja</label>
+                        <select id="storeId" class="form-select @error('storeId') is-invalid @enderror" wire:model="storeId">
+                            <option value="">Geral (toda a rede)</option>
+                            @foreach ($stores as $store)
+                                <option value="{{ $store->id }}">{{ $store->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('storeId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                @endif
                 <div class="col-6 col-md-3"><x-text-field name="dueDate" :label="$payableId ? 'Vencimento' : 'Primeiro vencimento'" type="date" required /></div>
                 <div class="col-6 col-md-3">
                     <label for="amount" class="form-label">{{ $mode === 'parcelada' ? 'Valor total (R$)' : 'Valor (R$)' }}</label>

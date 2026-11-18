@@ -1,5 +1,6 @@
 @php use App\Support\Money; @endphp
 <div>
+    <div class="row g-2"><x-store-filter :options="$storeOptions" /></div>
     <x-period-filter :error="$rangeError" />
 
     <p class="small text-body-secondary">De {{ $periodFrom->format('d/m/Y') }} a {{ $periodTo->format('d/m/Y') }}. Vendas canceladas não entram; as devoluções do período são descontadas.</p>

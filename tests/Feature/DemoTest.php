@@ -9,6 +9,9 @@ use App\Models\ProductVariant;
 use App\Models\Receivable;
 use App\Models\Sale;
 use App\Models\StockMovement;
+use App\Models\StockTransfer;
+use App\Models\Store;
+use App\Models\StoreStock;
 use App\Models\User;
 use App\Support\WhatsApp;
 use Database\Seeders\DemoDataSeeder;
@@ -26,7 +29,32 @@ class DemoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['loja.demo.enabled' => true]);
+        config(['loja.demo.enabled' => true, 'loja.plan.max_stores' => 3]);
+    }
+
+    public function test_demo_has_a_branch_with_its_own_stock_sales_and_transfers(): void
+    {
+        $this->seedDemo();
+
+        $branch = Store::where('code', 'SHOP')->sole();
+        $this->assertTrue(Sale::where('store_id', $branch->id)->exists());
+        $this->assertTrue(Sale::where('store_id', '!=', $branch->id)->exists());
+        $this->assertTrue(StockTransfer::where('status', StockTransfer::RECEIVED)->exists());
+
+        // O saldo de cada loja bate com as movimentações daquela loja.
+        foreach (StoreStock::inRandomOrder()->limit(30)->get() as $row) {
+            $this->assertSame($row->on_hand, (int) StockMovement::where('store_id', $row->store_id)->where('product_variant_id', $row->product_variant_id)->sum('quantity'));
+            $this->assertGreaterThanOrEqual(0, $row->on_hand);
+        }
+    }
+
+    public function test_demo_with_single_store_plan_has_no_branch(): void
+    {
+        config(['loja.plan.max_stores' => 1]);
+        $this->seedDemo();
+
+        $this->assertSame(1, Store::count());
+        $this->assertGreaterThan(30, Sale::count());
     }
 
     private function seedDemo(): void

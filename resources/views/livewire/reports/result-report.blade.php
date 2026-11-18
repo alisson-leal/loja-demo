@@ -4,6 +4,7 @@
     $minus = fn ($cents) => $cents > 0 ? '- '.Money::format($cents / 100) : Money::format(0);
 @endphp
 <div>
+    <div class="row g-2"><x-store-filter :options="$storeOptions" /></div>
     <x-period-filter :error="$rangeError" />
 
     <div class="row g-3 mb-3">
@@ -58,6 +59,9 @@
                         <li><strong>Taxas de cartão</strong> seguem as condições cadastradas em Formas de pagamento.</li>
                         <li><strong>Despesas</strong> são as contas a pagar com vencimento no período (pagas ou não), exceto compra de mercadorias e reembolsos de devolução.</li>
                         <li>Compras de mercadorias com vencimento no período: <strong>{{ Money::format($r['merchandise'] / 100) }}</strong>. Elas saem do caixa, mas o custo só entra no resultado quando as peças são vendidas.</li>
+                        @if ($storeFilter !== '')
+                            <li>Com uma loja escolhida, entram só as despesas lançadas para ela; as despesas gerais da rede aparecem em "Todas as lojas".</li>
+                        @endif
                         <li>É um resultado gerencial, sem impostos sobre o lucro. Para a contabilidade oficial, consulte o contador.</li>
                     </ul>
                 </div>

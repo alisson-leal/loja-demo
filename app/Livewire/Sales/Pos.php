@@ -211,7 +211,7 @@ class Pos extends Component
     /** @return array<string, mixed> Mesmos cálculos usados na finalização. */
     private function computation(): array
     {
-        $variants = ProductVariant::with(['product', 'values.attribute'])
+        $variants = ProductVariant::with(['product', 'values.attribute', 'storeStocks'])
             ->whereIn('id', array_column($this->cart, 'variant_id'))
             ->get()
             ->keyBy('id');

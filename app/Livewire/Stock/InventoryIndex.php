@@ -6,6 +6,7 @@ use App\Exceptions\BusinessRuleException;
 use App\Models\Category;
 use App\Models\Inventory;
 use App\Services\InventoryService;
+use App\Support\CurrentStore;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -54,8 +55,12 @@ class InventoryIndex extends Component
     public function render(): View
     {
         return view('livewire.stock.inventory-index', [
-            'inventories' => Inventory::with(['category', 'opener:id,name'])->withCount('items')->latest('id')->paginate(15),
+            'inventories' => Inventory::with(['category', 'opener:id,name', 'store:id,name'])
+                ->when(CurrentStore::multiple(), fn ($query) => $query->whereIn('store_id', CurrentStore::allowedIds(Auth::user())))
+                ->withCount('items')->latest('id')->paginate(15),
             'categories' => Category::ordered(),
+            'multiple' => CurrentStore::multiple(),
+            'storeName' => CurrentStore::store()->name,
         ]);
     }
 }

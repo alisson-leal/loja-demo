@@ -62,6 +62,7 @@ class PayableService
                     'installment' => $i,
                     'installments' => $times,
                     'notes' => $data['notes'],
+                    'store_id' => $data['store_id'] ?? null,
                     'created_by' => $actor->id,
                 ]);
             }
@@ -93,6 +94,7 @@ class PayableService
             'due_date' => $data['due_date'],
             'amount' => Money::fromCents($data['amount_cents']),
             'notes' => $data['notes'],
+            'store_id' => array_key_exists('store_id', $data) ? $data['store_id'] : $payable->store_id,
         ])->save();
 
         $this->audit->record('finance.payable_updated', "Conta a pagar alterada: {$payable->description}.", $payable);

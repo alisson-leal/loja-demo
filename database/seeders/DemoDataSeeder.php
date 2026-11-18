@@ -19,6 +19,8 @@ use App\Models\PaymentMethod;
 use App\Models\ProductVariant;
 use App\Models\Receivable;
 use App\Models\Sale;
+use App\Models\StockTransfer;
+use App\Models\Store;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\VariationAttribute;
@@ -41,7 +43,10 @@ use App\Services\SaleReturnService;
 use App\Services\SaleService;
 use App\Services\StockEntryService;
 use App\Services\StockService;
+use App\Services\StockTransferService;
+use App\Services\StoreService;
 use App\Services\WhatsAppQueueService;
+use App\Support\CurrentStore;
 use App\Support\CustomerFilter;
 use App\Support\Money;
 use App\Support\PermissionCatalog;
@@ -135,8 +140,16 @@ class DemoDataSeeder extends Seeder
     /** @var array<string, int> método => id */
     private array $methods = [];
 
-    /** @var array<int, int> id da variação => saldo em estoque, espelho para escolher o que vender */
+    /** @var array<int, array<int, int>> loja => id da variação => saldo, espelho para escolher o que vender */
     private array $stock = [];
+
+    private int $mainId = 0;
+
+    /** Filial (Loja Shopping); null quando o plano só permite uma loja. */
+    private ?int $branchId = null;
+
+    /** @var array<string, list<int>> transferências que chegam à filial, por dia */
+    private array $arrivals = [];
 
     /** @var array<int, array{weight: int, price: int, supplier: int, cost: string}> */
     private array $variants = [];
@@ -178,9 +191,11 @@ class DemoDataSeeder extends Seeder
             DB::transaction(function () use ($start, $today) {
                 $this->at($start->setTime(8, 0));
                 $this->createUsers();
+                $this->stores();
                 $this->paymentTerms();
                 $this->catalog();
                 $this->initialStock($start);
+                $this->openBranch($start);
                 $this->createCustomers($start, 170);
                 $this->at($start->setTime(8, 0));
                 $this->segments();
@@ -196,6 +211,7 @@ class DemoDataSeeder extends Seeder
             DB::transaction(fn () => $this->finalTouches($today));
         } finally {
             Carbon::setTestNow();
+            CurrentStore::use(null);
         }
 
         $this->command?->info('Loja de demonstração gerada: '.Sale::count().' vendas, '.Customer::count().' clientes, '.ProductVariant::count().' SKUs.');
@@ -237,6 +253,120 @@ class DemoDataSeeder extends Seeder
 
         $this->users['vendedora']->forceFill(['commission_percent' => 3])->save();
         $this->users['bruna']->forceFill(['commission_percent' => 2.5])->save();
+    }
+
+    /**
+     * Loja Centro (principal) e, se o plano permitir, a Loja Shopping, onde
+     * trabalha a vendedora Bruna. O estoquista atende as duas.
+     */
+    private function stores(): void
+    {
+        $service = app(StoreService::class);
+        $admin = $this->users['admin'];
+        $this->mainId = CurrentStore::mainId();
+
+        $main = $service->save(Store::findOrFail($this->mainId), ['name' => 'Loja Centro', 'code' => 'CENTRO', 'phone' => '(86) 3200-0000',
+            'address' => 'Rua das Flores, 100 - Centro', 'city' => 'Teresina', 'is_active' => true], $admin);
+        $service->syncUsers($main, [$this->users['vendedora']->id, $this->users['estoque']->id], $admin);
+
+        if ((int) config('loja.plan.max_stores') < 2) {
+            return;
+        }
+
+        $branch = $service->save(null, ['name' => 'Loja Shopping', 'code' => 'SHOP', 'phone' => '(86) 3200-0001',
+            'address' => 'Av. Demonstração, 500 - Shopping, piso L1', 'city' => 'Teresina', 'is_active' => true], $admin);
+        $service->syncUsers($branch, [$this->users['bruna']->id, $this->users['estoque']->id], $admin);
+        $this->branchId = $branch->id;
+    }
+
+    /** Loja em que a pessoa trabalha. */
+    private function home(User $user): int
+    {
+        return $this->branchId && $user->is($this->users['bruna']) ? $this->branchId : $this->mainId;
+    }
+
+    /** @param list<User> $sellers */
+    private function sellerAt(int $storeId, array $sellers): User
+    {
+        $local = array_values(array_filter($sellers, fn (User $seller) => $this->home($seller) === $storeId));
+
+        return $this->pick($local ?: $sellers);
+    }
+
+    private function stockAt(int $storeId, int $variantId): int
+    {
+        return $this->stock[$storeId][$variantId] ?? 0;
+    }
+
+    private function addStock(int $storeId, int $variantId, int $quantity): void
+    {
+        $this->stock[$storeId][$variantId] = $this->stockAt($storeId, $variantId) + $quantity;
+    }
+
+    /** A filial recebe parte do estoque inicial no primeiro dia. */
+    private function openBranch(CarbonImmutable $start): void
+    {
+        if (! $this->branchId) {
+            return;
+        }
+
+        $items = [];
+        foreach (array_keys($this->variants) as $id) {
+            $quantity = intdiv($this->stockAt($this->mainId, $id) * 2, 5);
+            if ($quantity > 0) {
+                $items[] = ['variant_id' => $id, 'quantity' => $quantity];
+            }
+        }
+
+        $this->at($start->setTime(7, 40));
+        $transferId = $this->sendTransfer($items, 'Estoque de abertura da Loja Shopping');
+        $this->at($start->setTime(8, 10));
+        $this->receiveTransfer($transferId);
+    }
+
+    /** @param list<array{variant_id: int, quantity: int}> $items */
+    private function sendTransfer(array $items, string $notes): int
+    {
+        $transfer = app(StockTransferService::class)->send($this->users['estoque'], $this->mainId, $this->branchId, $items, $notes);
+
+        foreach ($items as $item) {
+            $this->addStock($this->mainId, $item['variant_id'], -$item['quantity']);
+        }
+
+        return $transfer->id;
+    }
+
+    /** A loja principal repõe a filial com o que está acabando lá; chega no dia seguinte. */
+    private function supplyBranch(CarbonImmutable $day): void
+    {
+        if (! $this->branchId) {
+            return;
+        }
+
+        $items = [];
+        foreach (array_keys($this->variants) as $id) {
+            $spare = $this->stockAt($this->mainId, $id) - 3;
+            if ($this->stockAt($this->branchId, $id) <= 2 && $spare > 0) {
+                $items[] = ['variant_id' => $id, 'quantity' => min($spare, mt_rand(3, 5))];
+            }
+        }
+
+        if ($items === []) {
+            return;
+        }
+
+        $this->at($day->setTime(11, 30));
+        $this->arrivals[$day->addDay()->toDateString()][] = $this->sendTransfer($items, 'Reposição semanal');
+    }
+
+    private function receiveTransfer(int $transferId): void
+    {
+        $transfer = StockTransfer::with('items')->findOrFail($transferId);
+        app(StockTransferService::class)->receive($this->users['estoque'], $transfer);
+
+        foreach ($transfer->items as $item) {
+            $this->addStock($transfer->to_store_id, $item->product_variant_id, $item->quantity);
+        }
     }
 
     /** Código EAN-13 interno (prefixo 2, de uso da própria loja) com dígito verificador. */
@@ -369,7 +499,7 @@ class DemoDataSeeder extends Seeder
             ], $total > 150000 ? 3 : 2, true, $this->users['gerente']);
 
             foreach ($items as $item) {
-                $this->stock[$item['variant_id']] = ($this->stock[$item['variant_id']] ?? 0) + $item['quantity'];
+                $this->addStock($this->mainId, $item['variant_id'], $item['quantity']);
             }
         }
     }
@@ -457,12 +587,15 @@ class DemoDataSeeder extends Seeder
         $category = fn (string $name) => ExpenseCategory::where('name', $name)->value('id');
         $months = $this->months + 2;
         $firstMonth = $start->startOfMonth();
-        $bill = fn (string $description, string $cat, int $day, int $cents, int $times) => $payables->create([
+        $bill = fn (string $description, string $cat, int $day, int $cents, int $times, ?int $store = null) => $payables->create([
             'description' => $description, 'expense_category_id' => $category($cat), 'supplier_id' => null, 'document' => null,
-            'due_date' => $firstMonth->day($day)->toDateString(), 'amount_cents' => $cents, 'notes' => null,
+            'due_date' => $firstMonth->day($day)->toDateString(), 'amount_cents' => $cents, 'notes' => null, 'store_id' => $store,
         ], $times, false, $this->users['gerente']);
 
-        $bill('Aluguel da loja', 'Aluguel', 5, 320000, $months);
+        $bill('Aluguel da loja', 'Aluguel', 5, 320000, $months, $this->mainId);
+        if ($this->branchId) {
+            $bill('Aluguel e condomínio do shopping', 'Aluguel', 5, 410000, $months, $this->branchId);
+        }
         $bill('Folha de pagamento e encargos', 'Salários e encargos', 5, 435000, $months);
         $bill('Honorários do contador', 'Contador', 10, 65000, $months);
         $bill('Internet e telefone', 'Internet e telefone', 20, 14990, $months);
@@ -500,8 +633,18 @@ class DemoDataSeeder extends Seeder
             app(BirthdayAutomation::class)->expireStale();
             app(BirthdayAutomation::class)->run();
 
+            foreach ($this->arrivals[$day->toDateString()] ?? [] as $transferId) {
+                // A reposição de ontem fica "a caminho", para a demonstração mostrar o recebimento.
+                if ($day->equalTo($yesterday)) {
+                    continue;
+                }
+                $this->at($day->setTime(9, 5));
+                $this->receiveTransfer($transferId);
+            }
+
             if ($day->isMonday() && $day->gt($start)) {
                 $this->restock($day);
+                $this->supplyBranch($day);
                 $this->confirmReceivables($day->subDay());
             }
 
@@ -547,8 +690,10 @@ class DemoDataSeeder extends Seeder
 
         foreach ($sellers as $seller) {
             $this->at($day->setTime(9, mt_rand(0, 10)));
+            CurrentStore::use($this->home($seller));
             $cash->open($seller, 15000);
         }
+        CurrentStore::use(null);
 
         $base = [1 => 6, 2 => 7, 3 => 7, 4 => 8, 5 => 10, 6 => 14][$day->dayOfWeekIso];
         $season = match (true) {
@@ -583,7 +728,7 @@ class DemoDataSeeder extends Seeder
 
         foreach ($this->returns[$day->toDateString()] ?? [] as $return) {
             $this->at($day->setTime(16, mt_rand(0, 59)));
-            $this->registerReturn($return['sale'], $return['refund'], $this->pick($sellers));
+            $this->registerReturn($return['sale'], $return['refund'], $sellers);
         }
 
         foreach ($sellers as $seller) {
@@ -594,13 +739,14 @@ class DemoDataSeeder extends Seeder
     private function sell(User $seller): void
     {
         $lines = [];
+        $store = $this->home($seller);
         $wanted = $this->chance(55) ? 1 : ($this->chance(65) ? 2 : 3);
 
         for ($i = 0; $i < $wanted * 3 && count($lines) < $wanted; $i++) {
-            $id = $this->weightedVariant();
+            $id = $this->weightedVariant($store);
             $quantity = $this->chance(85) ? 1 : 2;
 
-            if ($id !== null && ! isset($lines[$id]) && ($this->stock[$id] ?? 0) >= $quantity) {
+            if ($id !== null && ! isset($lines[$id]) && $this->stockAt($store, $id) >= $quantity) {
                 $lines[$id] = $quantity;
             }
         }
@@ -641,13 +787,13 @@ class DemoDataSeeder extends Seeder
         }
 
         foreach ($lines as $id => $quantity) {
-            $this->stock[$id] -= $quantity;
+            $this->addStock($store, $id, -$quantity);
         }
 
         if ($this->chance(0.7)) {
             app(SaleService::class)->cancel($seller, $sale, $this->pick(['Cliente desistiu da compra', 'Venda lançada em duplicidade', 'Erro no tamanho escolhido']), $this->users['gerente']);
             foreach ($lines as $id => $quantity) {
-                $this->stock[$id] += $quantity;
+                $this->addStock($store, $id, $quantity);
             }
 
             return;
@@ -691,11 +837,12 @@ class DemoDataSeeder extends Seeder
     private function openConsignment(CarbonImmutable $day, User $seller): void
     {
         $customerId = $this->pick($this->customerPool);
+        $store = $this->home($seller);
         $items = [];
 
         foreach (range(1, mt_rand(2, 4)) as $i) {
-            $id = $this->weightedVariant();
-            if ($id !== null && ! isset($items[$id]) && ($this->stock[$id] ?? 0) >= 1) {
+            $id = $this->weightedVariant($store);
+            if ($id !== null && ! isset($items[$id]) && $this->stockAt($store, $id) >= 1) {
                 $items[$id] = 1;
             }
         }
@@ -709,14 +856,17 @@ class DemoDataSeeder extends Seeder
         $due = $openDay($day->addDays(3));
 
         try {
+            CurrentStore::use($store);
             $consignment = app(ConsignmentService::class)->open($seller, $customerId,
                 array_map(fn ($id) => ['variant_id' => $id, 'quantity' => 1], array_keys($items)), $due, null);
         } catch (BusinessRuleException) {
             return;
+        } finally {
+            CurrentStore::use(null);
         }
 
         foreach ($items as $id => $quantity) {
-            $this->stock[$id] -= $quantity;
+            $this->addStock($store, $id, -$quantity);
         }
 
         // A maioria volta no prazo; algumas atrasam dois dias.
@@ -727,7 +877,8 @@ class DemoDataSeeder extends Seeder
     {
         foreach ($this->consignmentVisits[$day->toDateString()] ?? [] as $id) {
             $consignment = Consignment::with('items')->find($id);
-            $seller = $this->pick($sellers);
+            $store = $consignment->store_id;
+            $seller = $this->sellerAt($store, $sellers);
             $returned = [];
 
             foreach ($consignment->items as $item) {
@@ -738,7 +889,7 @@ class DemoDataSeeder extends Seeder
             $kept = app(ConsignmentService::class)->settle($consignment, $returned, $seller);
 
             foreach ($consignment->items as $item) {
-                $this->stock[$item->product_variant_id] += $returned[$item->id];
+                $this->addStock($store, $item->product_variant_id, $returned[$item->id]);
             }
 
             if ($kept === 0) {
@@ -756,15 +907,16 @@ class DemoDataSeeder extends Seeder
             } catch (BusinessRuleException) {
                 app(ConsignmentService::class)->closeWithoutSale($consignment, $seller);
                 foreach ($consignment->items as $item) {
-                    $this->stock[$item->product_variant_id] += $item->kept_quantity;
+                    $this->addStock($store, $item->product_variant_id, $item->kept_quantity);
                 }
             }
         }
     }
 
-    private function weightedVariant(): ?int
+    private function weightedVariant(?int $storeId = null): ?int
     {
-        $available = array_filter($this->variants, fn ($info, $id) => ($this->stock[$id] ?? 0) > 0, ARRAY_FILTER_USE_BOTH);
+        $storeId ??= $this->mainId;
+        $available = array_filter($this->variants, fn ($info, $id) => $this->stockAt($storeId, $id) > 0, ARRAY_FILTER_USE_BOTH);
 
         if ($available === []) {
             return null;
@@ -806,7 +958,8 @@ class DemoDataSeeder extends Seeder
         };
     }
 
-    private function registerReturn(int $saleId, ?int $refundMethodId, User $seller): void
+    /** @param list<User> $sellers */
+    private function registerReturn(int $saleId, ?int $refundMethodId, array $sellers): void
     {
         $sale = Sale::with('items')->find($saleId);
         $item = $sale?->items->first(fn ($i) => $i->returnableQuantity() > 0);
@@ -815,10 +968,12 @@ class DemoDataSeeder extends Seeder
             return;
         }
 
+        $seller = $this->sellerAt($sale->store_id, $sellers);
+
         try {
             app(SaleReturnService::class)->register($seller, $sale, [['sale_item_id' => $item->id, 'quantity' => 1, 'restock' => true]],
                 $refundMethodId ? 'Produto com defeito' : 'Troca de tamanho', $refundMethodId, $this->users['gerente']);
-            $this->stock[$item->product_variant_id] = ($this->stock[$item->product_variant_id] ?? 0) + 1;
+            $this->addStock($sale->store_id, $item->product_variant_id, 1);
         } catch (BusinessRuleException) {
         }
     }
@@ -851,7 +1006,8 @@ class DemoDataSeeder extends Seeder
         $items = [];
 
         foreach ($this->variants as $id => $info) {
-            if (($this->stock[$id] ?? 0) <= 3 && $this->chance(85)) {
+            // A principal compra também o que a filial vai precisar.
+            if ($this->stockAt($this->mainId, $id) + ($this->branchId ? $this->stockAt($this->branchId, $id) : 0) <= 5 && $this->chance(85)) {
                 $items[$info['supplier']][] = ['variant_id' => $id, 'quantity' => mt_rand(5, 9) + $info['weight'], 'unit_cost' => $info['cost']];
             }
         }
@@ -863,7 +1019,7 @@ class DemoDataSeeder extends Seeder
             $id = $this->weightedVariant();
             if ($id !== null) {
                 app(StockService::class)->register(ProductVariant::find($id), MovementType::Damage, 1, 'Peça com defeito de costura', $this->users['estoque']);
-                $this->stock[$id]--;
+                $this->addStock($this->mainId, $id, -1);
             }
         }
     }

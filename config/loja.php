@@ -140,6 +140,7 @@ return [
                 'ajustar' => 'Fazer ajustes manuais',
                 'inventario' => 'Realizar inventário',
                 'negativo' => 'Autorizar saldo negativo',
+                'transferir' => 'Transferir mercadoria entre lojas',
             ],
         ],
         'pdv' => [
@@ -223,6 +224,23 @@ return [
                 'acertar' => 'Fazer o acerto (devolução e venda)',
             ],
         ],
+        'lojas' => [
+            'label' => 'Lojas (filiais)',
+            'operations' => [
+                'gerir' => 'Cadastrar lojas e definir quem trabalha em cada uma',
+                'ver_todas' => 'Ver vendas, estoque e relatórios de todas as lojas',
+            ],
+        ],
+    ],
+
+    /*
+    | Plano contratado com a DevZero1. Quantas lojas ativas o cliente pode ter:
+    | cadastrar ou reativar lojas acima do limite é bloqueado. Só é alterado
+    | no servidor (.env), nunca pelo sistema.
+    */
+    'plan' => [
+        'name' => env('PLANO_NOME', 'Essencial'),
+        'max_stores' => max(1, (int) env('PLANO_LOJAS', 1)),
     ],
 
     /*
@@ -254,6 +272,7 @@ return [
             'relatorios.vendas', 'relatorios.produtos', 'relatorios.resultado',
             'comissoes.ver_propria', 'comissoes.ver', 'comissoes.fechar',
             'crediario.vender', 'crediario.receber', 'crediario.gerir', 'condicional.criar', 'condicional.acertar',
+            'lojas.ver_todas', 'estoque.transferir',
         ],
         'Vendedor' => [
             'produtos.ver', 'estoque.ver', 'pdv.vender', 'pdv.desconto', 'caixa.operar', 'clientes.criar', 'marketing.whatsapp', 'comissoes.ver_propria',
@@ -261,7 +280,7 @@ return [
         ],
         'Estoquista' => [
             'produtos.ver', 'produtos.ver_custo', 'cadastros.ver', 'fornecedores.ver',
-            'estoque.ver', 'estoque.entrada', 'estoque.movimentar', 'estoque.ajustar', 'estoque.inventario',
+            'estoque.ver', 'estoque.entrada', 'estoque.movimentar', 'estoque.ajustar', 'estoque.inventario', 'estoque.transferir',
         ],
     ],
 

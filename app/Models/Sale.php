@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,12 +10,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Sale extends Model
 {
+    use BelongsToStore;
+
     public const COMPLETED = 'completed';
 
     public const CANCELLED = 'cancelled';
 
     protected $fillable = [
-        'checkout_token', 'channel', 'status', 'cash_session_id', 'user_id', 'customer_id',
+        'store_id', 'checkout_token', 'channel', 'status', 'cash_session_id', 'user_id', 'customer_id',
         'subtotal', 'discount_total', 'total', 'change_amount', 'notes',
     ];
 

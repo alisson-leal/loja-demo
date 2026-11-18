@@ -7,6 +7,7 @@ use App\Models\Inventory;
 use App\Models\InventoryItem;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Support\CurrentStore;
 use Illuminate\Support\Facades\DB;
 
 class InventoryService
@@ -19,8 +20,9 @@ class InventoryService
     public function open(User $actor, ?int $categoryId, ?string $notes): Inventory
     {
         return DB::transaction(function () use ($actor, $categoryId, $notes) {
-            if (Inventory::where('status', Inventory::OPEN)->lockForUpdate()->exists()) {
-                throw new BusinessRuleException('Já existe um inventário em contagem. Conclua ou cancele antes de abrir outro.');
+            // Um inventário em contagem por loja.
+            if (Inventory::where('status', Inventory::OPEN)->where('store_id', CurrentStore::id())->lockForUpdate()->exists()) {
+                throw new BusinessRuleException('Já existe um inventário em contagem nesta loja. Conclua ou cancele antes de abrir outro.');
             }
 
             $variantIds = ProductVariant::operational()
@@ -32,6 +34,7 @@ class InventoryService
             }
 
             $inventory = Inventory::create([
+                'store_id' => CurrentStore::id(),
                 'status' => Inventory::OPEN,
                 'category_id' => $categoryId,
                 'notes' => $notes,
@@ -97,7 +100,7 @@ class InventoryService
             $adjusted = 0;
 
             foreach ($items as $item) {
-                $result = $this->stock->setCounted($item->variant, $item->counted_quantity, "Inventário #{$locked->id}", $actor, $locked);
+                $result = $this->stock->setCounted($item->variant, $item->counted_quantity, "Inventário #{$locked->id}", $actor, $locked, $locked->store_id);
                 $item->update(['expected_quantity' => $result['expected']]);
                 $adjusted += $result['movement'] ? 1 : 0;
             }

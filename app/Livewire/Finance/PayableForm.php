@@ -7,6 +7,7 @@ use App\Models\ExpenseCategory;
 use App\Models\Payable;
 use App\Models\Supplier;
 use App\Services\PayableService;
+use App\Support\CurrentStore;
 use App\Support\Money;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -28,6 +29,9 @@ class PayableForm extends Component
 
     public string $supplierId = '';
 
+    /** Loja da despesa; vazio = despesa geral da rede. */
+    public string $storeId = '';
+
     public string $document = '';
 
     public string $dueDate = '';
@@ -47,6 +51,7 @@ class PayableForm extends Component
 
         if ($payable === null) {
             $this->dueDate = today()->toDateString();
+            $this->storeId = CurrentStore::multiple() ? (string) CurrentStore::id() : '';
 
             return;
         }
@@ -58,6 +63,7 @@ class PayableForm extends Component
         $this->description = $model->description;
         $this->categoryId = (string) $model->expense_category_id;
         $this->supplierId = (string) $model->supplier_id;
+        $this->storeId = (string) $model->store_id;
         $this->document = (string) $model->document;
         $this->dueDate = $model->due_date->toDateString();
         $this->amount = (string) $model->amount;
@@ -75,6 +81,7 @@ class PayableForm extends Component
             'description' => ['required', 'string', 'min:2', 'max:150'],
             'categoryId' => ['required', Rule::exists('expense_categories', 'id')->where('is_active', true)],
             'supplierId' => ['nullable', Rule::exists('suppliers', 'id')],
+            'storeId' => ['nullable', Rule::in(array_map('strval', CurrentStore::allowedIds(Auth::user())))],
             'document' => ['nullable', 'string', 'max:60'],
             'dueDate' => ['required', 'date', 'after:2000-01-01', 'before:2100-01-01'],
             'amount' => ['required', 'numeric', 'gt:0', 'max:9999999'],
@@ -82,7 +89,7 @@ class PayableForm extends Component
             'mode' => ['required', Rule::in(['unica', 'parcelada', 'mensal'])],
             'times' => $this->mode === 'unica' ? ['nullable'] : ['required', 'integer', 'min:2', 'max:'.PayableService::MAX_REPEAT],
         ], [], [
-            'description' => 'descrição', 'categoryId' => 'categoria', 'supplierId' => 'fornecedor', 'document' => 'documento',
+            'description' => 'descrição', 'categoryId' => 'categoria', 'supplierId' => 'fornecedor', 'storeId' => 'loja', 'document' => 'documento',
             'dueDate' => 'vencimento', 'amount' => 'valor', 'notes' => 'observação', 'times' => 'quantidade de meses',
         ]);
 
@@ -90,6 +97,7 @@ class PayableForm extends Component
             'description' => $this->description,
             'expense_category_id' => (int) $this->categoryId,
             'supplier_id' => $this->supplierId !== '' ? (int) $this->supplierId : null,
+            'store_id' => $this->storeId !== '' ? (int) $this->storeId : null,
             'document' => trim($this->document) ?: null,
             'due_date' => $this->dueDate,
             'amount_cents' => Money::toCents($this->amount),
@@ -118,6 +126,7 @@ class PayableForm extends Component
         return view('livewire.finance.payable-form', [
             'categories' => ExpenseCategory::where('is_active', true)->orWhere('id', (int) $this->categoryId)->ordered()->get(['id', 'name']),
             'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
+            'stores' => CurrentStore::multiple() ? CurrentStore::allowed(Auth::user()) : collect(),
             'preview' => match ($this->mode) {
                 'parcelada' => $cents > 0 ? "{$times} parcelas mensais de cerca de ".Money::format(intdiv($cents, $times) / 100).'.' : null,
                 'mensal' => $cents > 0 ? "{$times} contas mensais de ".Money::format($cents / 100).', total '.Money::format($cents * $times / 100).'.' : null,

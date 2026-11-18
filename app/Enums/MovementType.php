@@ -14,6 +14,8 @@ enum MovementType: string
     case Inventory = 'inventory';
     case Sale = 'sale';
     case SaleCancellation = 'sale_cancel';
+    case TransferOut = 'transfer_out';
+    case TransferIn = 'transfer_in';
 
     public function label(): string
     {
@@ -28,12 +30,14 @@ enum MovementType: string
             self::Inventory => 'Inventário',
             self::Sale => 'Venda',
             self::SaleCancellation => 'Cancelamento de venda',
+            self::TransferOut => 'Transferência enviada',
+            self::TransferIn => 'Transferência recebida',
         };
     }
 
     public function isInbound(): bool
     {
-        return in_array($this, [self::Entry, self::Return, self::AdjustmentIn, self::SaleCancellation], true);
+        return in_array($this, [self::Entry, self::Return, self::AdjustmentIn, self::SaleCancellation, self::TransferIn], true);
     }
 
     /** Permissão exigida para registrar este tipo pela tela de movimentação. */

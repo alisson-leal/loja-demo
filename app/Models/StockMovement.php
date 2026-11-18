@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\MovementType;
+use App\Models\Concerns\BelongsToStore;
 use App\Models\Concerns\Immutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,12 +11,13 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class StockMovement extends Model
 {
+    use BelongsToStore;
     use Immutable;
 
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'product_variant_id', 'type', 'quantity', 'balance_after', 'unit_cost',
+        'store_id', 'product_variant_id', 'type', 'quantity', 'balance_after', 'unit_cost',
         'reason', 'reference_type', 'reference_id', 'user_id',
     ];
 

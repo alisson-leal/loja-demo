@@ -35,6 +35,7 @@
                 </select>
             </div>
         @endif
+        <x-store-filter :options="$storeOptions" class="col-12 col-lg-2" />
         <div class="col-6 col-lg">
             <label for="from" class="form-label">De</label>
             <input id="from" type="date" class="form-control" wire:model.live="from">
@@ -53,6 +54,7 @@
                     <tr>
                         <th scope="col">Venda</th>
                         <th scope="col">Data</th>
+                        @if ($multiple)<th scope="col">Loja</th>@endif
                         <th scope="col">Cliente</th>
                         <th scope="col">Operador</th>
                         <th scope="col">Pagamento</th>
@@ -66,6 +68,7 @@
                         <tr wire:key="sale-{{ $sale->id }}">
                             <td>#{{ $sale->number() }}</td>
                             <td class="text-nowrap">{{ $sale->created_at->format('d/m/Y H:i') }}</td>
+                            @if ($multiple)<td>{{ $sale->store?->name }}</td>@endif
                             <td>{{ $sale->customer?->name ?? '-' }}</td>
                             <td>{{ $sale->user->name }}</td>
                             <td>{{ $sale->payments->pluck('method.name')->unique()->implode(', ') }}</td>
@@ -74,7 +77,7 @@
                             <td class="text-end"><a href="{{ route('sales.show', $sale->id) }}" class="btn btn-sm btn-outline-primary">Abrir</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="text-center text-body-secondary py-4">Nenhuma venda encontrada.</td></tr>
+                        <tr><td colspan="9" class="text-center text-body-secondary py-4">Nenhuma venda encontrada.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -108,7 +108,7 @@ class InventoryCount extends Component
         $term = trim($this->search);
 
         $items = $inventory->items()
-            ->with(['variant.product', 'variant.values.attribute'])
+            ->with(['variant.product', 'variant.values.attribute', 'variant.storeStocks'])
             ->when($term !== '', fn (Builder $query) => $query->whereHas('variant', fn (Builder $variant) => $variant->search($term)))
             ->when($this->onlyPending, fn (Builder $query) => $query->whereNull('counted_quantity'))
             ->orderBy('product_variant_id')

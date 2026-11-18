@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StockReservation extends Model
 {
+    use BelongsToStore;
+
     public const ACTIVE = 'active';
 
     public const CONSUMED = 'consumed';
@@ -15,7 +18,7 @@ class StockReservation extends Model
 
     public const EXPIRED = 'expired';
 
-    protected $fillable = ['product_variant_id', 'quantity', 'status', 'reference_key', 'expires_at'];
+    protected $fillable = ['store_id', 'product_variant_id', 'quantity', 'status', 'reference_key', 'expires_at'];
 
     protected function casts(): array
     {

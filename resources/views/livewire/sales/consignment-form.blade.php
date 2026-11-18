@@ -24,7 +24,7 @@
                                             <label for="qty-{{ $id }}" class="visually-hidden">Quantidade de {{ $variant->fullName() }}</label>
                                             <input id="qty-{{ $id }}" type="number" min="1" class="form-control form-control-sm grid-small" wire:model.live.debounce.400ms="items.{{ $id }}">
                                         </td>
-                                        <td @class(['text-danger' => (int) $quantity > $variant->available()])>{{ $variant->available() }}</td>
+                                        <td @class(['text-danger' => (int) $quantity > $variant->availableIn()])>{{ $variant->availableIn() }}</td>
                                         <td class="text-end"><button type="button" class="btn btn-sm btn-light text-danger" wire:click="remove({{ $id }})" aria-label="Remover {{ $variant->fullName() }}"><i class="bi bi-trash" aria-hidden="true"></i></button></td>
                                     </tr>
                                 @endif

@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\HasStoreFilter;
 use App\Models\Category;
 use App\Models\User;
 use App\Services\DashboardMetrics;
@@ -18,6 +19,8 @@ use Throwable;
 #[Title('Painel')]
 class Dashboard extends Component
 {
+    use HasStoreFilter;
+
     private const MAX_RANGE_DAYS = 366;
 
     #[Url(as: 'de')]
@@ -57,6 +60,7 @@ class Dashboard extends Component
         [$from, $to, $rangeError] = $this->resolveRange();
         $userId = ctype_digit($this->userId) ? (int) $this->userId : null;
         $categoryId = ctype_digit($this->categoryId) ? (int) $this->categoryId : null;
+        $salesMetrics = $salesMetrics->forStore($this->storeFilterId());
 
         return view('livewire.dashboard', [
             'allowed' => true,
@@ -76,6 +80,7 @@ class Dashboard extends Component
             'canSeeStock' => $canSeeStock = $user->can('estoque.ver'),
             'stock' => $canSeeStock ? $metrics->stockSummary($categoryId) : null,
             'lowStock' => $canSeeStock ? $metrics->lowStockItems(8, $categoryId) : null,
+            'storeOptions' => $this->storeFilterOptions(),
             'categories' => ($canSeeStock || $canSeeSales) ? Category::ordered() : null,
         ]);
     }

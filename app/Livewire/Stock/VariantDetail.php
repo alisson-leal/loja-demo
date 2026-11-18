@@ -3,6 +3,8 @@
 namespace App\Livewire\Stock;
 
 use App\Models\ProductVariant;
+use App\Models\Store;
+use App\Support\CurrentStore;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -27,12 +29,15 @@ class VariantDetail extends Component
 
     public function render(): View
     {
-        $variant = ProductVariant::with(['product', 'values.attribute'])->findOrFail($this->variantId);
+        $variant = ProductVariant::with(['product', 'values.attribute', 'storeStocks'])->findOrFail($this->variantId);
         $canSeeCost = Auth::user()->can('produtos.ver_custo');
+        $multiple = CurrentStore::multiple();
 
         return view('livewire.stock.variant-detail', [
             'variant' => $variant,
-            'movements' => $variant->movements()->with('user:id,name')->latest('id')->paginate(15),
+            'multiple' => $multiple,
+            'stores' => $multiple ? Store::active()->ordered()->get() : collect(),
+            'movements' => $variant->movements()->with('user:id,name', 'store:id,name')->latest('id')->paginate(15),
             'canSeeCost' => $canSeeCost,
             'costs' => $canSeeCost
                 ? $variant->costHistory()->with(['user:id,name', 'supplier:id,name'])->latest('id')->limit(20)->get()

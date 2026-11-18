@@ -94,7 +94,7 @@ class ConsignmentForm extends Component
         return view('livewire.sales.consignment-form', [
             'customer' => $this->customerId ? Customer::find($this->customerId) : null,
             'customerResults' => mb_strlen($term) >= 2 ? Customer::search($term)->orderBy('name')->limit(6)->get() : collect(),
-            'variants' => ProductVariant::with(['product', 'values.attribute'])->whereIn('id', array_keys($this->items))->get()->keyBy('id'),
+            'variants' => ProductVariant::with(['product', 'values.attribute', 'storeStocks'])->whereIn('id', array_keys($this->items))->get()->keyBy('id'),
         ]);
     }
 }

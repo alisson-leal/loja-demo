@@ -8,6 +8,7 @@ use App\Models\CashMovement;
 use App\Models\CashSession;
 use App\Models\SalePayment;
 use App\Models\User;
+use App\Support\CurrentStore;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -41,6 +42,7 @@ class CashService
             }
 
             $session = CashSession::create([
+                'store_id' => CurrentStore::id(),
                 'user_id' => $actor->id,
                 'status' => CashSession::OPEN,
                 'opening_amount' => Money::fromCents($openingCents),

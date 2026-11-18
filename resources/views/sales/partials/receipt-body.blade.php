@@ -4,6 +4,9 @@
         <strong style="font-size: 20px;">{{ $store['name'] }}</strong><br>
         {{ $store['tagline'] }}<br>
         {{ $store['instagram'] }} · {{ $store['whatsapp'] }}
+        @if (\App\Support\CurrentStore::multiple() && $sale->store)
+            <br>{{ $sale->store->name }}@if ($sale->store->address) · {{ $sale->store->address }}@endif @if ($sale->store->phone) · {{ $sale->store->phone }}@endif
+        @endif
     </div>
     <div style="text-align: center; border-top: 1px dashed #999; border-bottom: 1px dashed #999; padding: 6px 0; margin-bottom: 10px;">
         <strong>Comprovante de venda - não fiscal</strong><br>

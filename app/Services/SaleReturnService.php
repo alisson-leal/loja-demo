@@ -98,7 +98,7 @@ class SaleReturnService
         ]);
 
         if ($item['restock']) {
-            $this->stock->register($saleItem->variant, MovementType::Return, $item['quantity'], $label, $actor, $saleItem->unit_cost, $return);
+            $this->stock->register($saleItem->variant, MovementType::Return, $item['quantity'], $label, $actor, $saleItem->unit_cost, $return, storeId: $sale->store_id);
         }
 
         return $amount;

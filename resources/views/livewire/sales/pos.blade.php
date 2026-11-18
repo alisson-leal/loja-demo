@@ -51,8 +51,8 @@
                                             <td>
                                                 {{ $variant->fullName() }}
                                                 <div class="small text-body-secondary">{{ $variant->sku }}</div>
-                                                @if (! $consignment && (int) $line['quantity'] > $variant->available())
-                                                    <div class="small text-danger">Disponível: {{ $variant->available() }}</div>
+                                                @if (! $consignment && (int) $line['quantity'] > $variant->availableIn($session->store_id))
+                                                    <div class="small text-danger">Disponível nesta loja: {{ $variant->availableIn($session->store_id) }}</div>
                                                 @endif
                                             </td>
                                             <td class="text-nowrap">{{ Money::format($variant->sale_price) }}</td>

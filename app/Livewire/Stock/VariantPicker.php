@@ -57,7 +57,7 @@ class VariantPicker extends Component
         return view('livewire.stock.variant-picker', [
             'results' => mb_strlen($term) >= 2
                 ? ProductVariant::operational()->search($term)
-                    ->with(['product', 'values.attribute'])
+                    ->with(['product', 'values.attribute', 'storeStocks'])
                     ->orderBy('id')
                     ->limit(10)
                     ->get()

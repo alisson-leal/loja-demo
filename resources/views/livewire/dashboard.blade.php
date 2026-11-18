@@ -46,6 +46,7 @@
                             @endforeach
                         </select>
                     </div>
+                    <x-store-filter :options="$storeOptions" />
                     <div class="col-12 col-md-3">
                         <div class="btn-group w-100" role="group" aria-label="Períodos rápidos">
                             <button type="button" class="btn btn-outline-primary" wire:click="setPeriod(1)">Hoje</button>

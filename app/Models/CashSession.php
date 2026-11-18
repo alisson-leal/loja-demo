@@ -2,18 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CashSession extends Model
 {
+    use BelongsToStore;
+
     public const OPEN = 'open';
 
     public const CLOSED = 'closed';
 
     protected $fillable = [
-        'user_id', 'status', 'opening_amount', 'expected_amount', 'counted_amount',
+        'store_id', 'user_id', 'status', 'opening_amount', 'expected_amount', 'counted_amount',
         'difference', 'closing_notes', 'closed_by', 'opened_at', 'closed_at',
     ];
 

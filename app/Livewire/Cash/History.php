@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Cash;
 
+use App\Livewire\Concerns\HasStoreFilter;
 use App\Models\CashSession;
 use App\Models\User;
+use App\Support\CurrentStore;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -15,7 +17,7 @@ use Livewire\WithPagination;
 #[Title('Histórico de caixas')]
 class History extends Component
 {
-    use WithPagination;
+    use HasStoreFilter, WithPagination;
 
     #[Url(as: 'operador')]
     public string $userId = '';
@@ -23,6 +25,11 @@ class History extends Component
     public function mount(): void
     {
         abort_unless(Gate::any(['caixa.operar', 'caixa.gerir']), 403);
+    }
+
+    public function updatedStoreFilter(): void
+    {
+        $this->resetPage();
     }
 
     public function updatedUserId(): void
@@ -40,9 +47,13 @@ class History extends Component
             'sessions' => CashSession::with('user:id,name')
                 ->when(! $seesAll, fn ($query) => $query->where('user_id', $user->id))
                 ->when($seesAll && ctype_digit($this->userId), fn ($query) => $query->where('user_id', (int) $this->userId))
+                ->when($seesAll, fn ($query) => $query->inStore($this->storeFilterId()))
+                ->with('store:id,name')
                 ->latest('id')
                 ->paginate(20),
             'users' => $seesAll ? User::orderBy('name')->get(['id', 'name']) : collect(),
+            'storeOptions' => $seesAll ? $this->storeFilterOptions() : collect(),
+            'multiple' => CurrentStore::multiple(),
         ]);
     }
 }

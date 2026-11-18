@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Payable extends Model
 {
+    use BelongsToStore;
+
     public const OPEN = 'open';
 
     public const PAID = 'paid';
@@ -22,7 +25,7 @@ class Payable extends Model
     ];
 
     protected $fillable = [
-        'description', 'expense_category_id', 'supplier_id', 'document', 'due_date', 'amount',
+        'store_id', 'description', 'expense_category_id', 'supplier_id', 'document', 'due_date', 'amount',
         'series', 'installment', 'installments', 'notes', 'created_by',
     ];
 

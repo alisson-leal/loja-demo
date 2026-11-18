@@ -10,6 +10,7 @@ use App\Models\ProductVariant;
 use App\Models\Sale;
 use App\Models\StockReservation;
 use App\Models\User;
+use App\Support\CurrentStore;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -43,6 +44,7 @@ class ConsignmentService
 
         return DB::transaction(function () use ($actor, $customer, $items, $dueDate, $notes) {
             $consignment = Consignment::create([
+                'store_id' => CurrentStore::id(),
                 'customer_id' => $customer->id,
                 'user_id' => $actor->id,
                 'due_date' => $dueDate->toDateString(),
@@ -59,7 +61,7 @@ class ConsignmentService
                     'quantity' => $item['quantity'],
                 ]);
 
-                $this->reservations->reserve($variant, $item['quantity'], $this->key($line));
+                $this->reservations->reserve($variant, $item['quantity'], $this->key($line), storeId: $consignment->store_id);
             }
 
             $this->audit->record('consignment.opened', "Condicional #{$consignment->number()} aberta para {$customer->name}.", $consignment);
@@ -99,7 +101,7 @@ class ConsignmentService
                 $item->forceFill(['returned_quantity' => $back, 'kept_quantity' => $keep])->save();
 
                 if ($keep > 0) {
-                    $this->reservations->reserve($item->variant, $keep, $this->key($item, 'venda'));
+                    $this->reservations->reserve($item->variant, $keep, $this->key($item, 'venda'), storeId: $locked->store_id);
                     $kept += $keep;
                 }
             }
@@ -135,12 +137,16 @@ class ConsignmentService
     }
 
     /** Chamado pela venda, na mesma transação: tira a reserva das peças para a baixa da venda. */
-    public function releaseForSale(int $consignmentId, ?int $customerId): Consignment
+    public function releaseForSale(int $consignmentId, ?int $customerId, ?int $storeId = null): Consignment
     {
         $locked = Consignment::with('items')->whereKey($consignmentId)->lockForUpdate()->firstOrFail();
 
         if ($locked->status !== Consignment::AWAITING_SALE) {
             throw new BusinessRuleException('Esta condicional não está aguardando pagamento.');
+        }
+
+        if ($storeId !== null && $locked->store_id !== null && $storeId !== $locked->store_id) {
+            throw new BusinessRuleException('A condicional é de outra loja: cobre no caixa da loja onde ela foi aberta.');
         }
 
         if ($customerId !== $locked->customer_id) {

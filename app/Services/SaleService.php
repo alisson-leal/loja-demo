@@ -12,6 +12,7 @@ use App\Models\SaleItem;
 use App\Models\SalePayment;
 use App\Models\StoreCredit;
 use App\Models\User;
+use App\Support\CurrentStore;
 use App\Support\Money;
 use App\Support\SaleCalculator;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -69,7 +70,10 @@ class SaleService
         $session = $this->cash->lockOpenSession($actor, 'Abra seu caixa antes de vender.');
 
         // Peças da condicional que o cliente ficou: a reserva sai antes da baixa da venda.
-        $consignment = $consignmentId ? $this->consignments->releaseForSale($consignmentId, $customerId) : null;
+        // A venda é da loja do caixa aberto.
+        $storeId = $session->store_id ?? CurrentStore::mainId();
+
+        $consignment = $consignmentId ? $this->consignments->releaseForSale($consignmentId, $customerId, $storeId) : null;
 
         // Ordem fixa de bloqueio evita deadlock entre vendas simultâneas.
         usort($cart, fn (array $a, array $b) => $a['variant_id'] <=> $b['variant_id']);
@@ -87,6 +91,7 @@ class SaleService
         $settled = $this->settlePayments($payments, $calculation['total'], $customerId, $actor);
 
         $sale = Sale::create([
+            'store_id' => $storeId,
             'checkout_token' => $token,
             'cash_session_id' => $session->id,
             'user_id' => $actor->id,
@@ -115,7 +120,7 @@ class SaleService
                 'total' => Money::fromCents($calculation['lines'][$index]['total']),
             ]);
 
-            $this->stock->register($variant, MovementType::Sale, $line['quantity'], $reason, $actor, reference: $sale);
+            $this->stock->register($variant, MovementType::Sale, $line['quantity'], $reason, $actor, reference: $sale, storeId: $storeId);
         }
 
         foreach ($settled['rows'] as $row) {
@@ -322,7 +327,7 @@ class SaleService
             }
 
             foreach ($locked->items()->orderBy('product_variant_id')->with('variant')->get() as $item) {
-                $this->stock->register($item->variant, MovementType::SaleCancellation, $item->quantity, $label, $actor, $item->unit_cost, $locked);
+                $this->stock->register($item->variant, MovementType::SaleCancellation, $item->quantity, $label, $actor, $item->unit_cost, $locked, storeId: $locked->store_id);
             }
 
             $this->receivables->cancelForSale($locked);

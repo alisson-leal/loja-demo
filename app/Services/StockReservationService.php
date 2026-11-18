@@ -7,25 +7,28 @@ use App\Exceptions\BusinessRuleException;
 use App\Models\ProductVariant;
 use App\Models\StockReservation;
 use App\Models\User;
+use App\Support\CurrentStore;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Reserva de estoque para vendas que ainda não foram concluídas, como pedidos
- * da futura loja virtual. Repetir uma operação não duplica o efeito, o que
- * protege contra notificações repetidas dos gateways de pagamento.
+ * Reserva de estoque de uma loja para vendas que ainda não foram concluídas,
+ * como a condicional e os pedidos da futura loja virtual. Repetir uma
+ * operação não duplica o efeito, o que protege contra notificações repetidas.
  */
 class StockReservationService
 {
     public function __construct(private readonly StockService $stock) {}
 
-    public function reserve(ProductVariant $variant, int $quantity, string $referenceKey, ?CarbonInterface $expiresAt = null): StockReservation
+    public function reserve(ProductVariant $variant, int $quantity, string $referenceKey, ?CarbonInterface $expiresAt = null, ?int $storeId = null): StockReservation
     {
         if ($quantity <= 0) {
             throw new BusinessRuleException('A quantidade reservada deve ser maior que zero.');
         }
 
-        return DB::transaction(function () use ($variant, $quantity, $referenceKey, $expiresAt) {
+        $storeId ??= CurrentStore::id();
+
+        return DB::transaction(function () use ($variant, $quantity, $referenceKey, $expiresAt, $storeId) {
             $locked = ProductVariant::whereKey($variant->id)->lockForUpdate()->firstOrFail();
 
             $existing = StockReservation::where('product_variant_id', $locked->id)
@@ -37,14 +40,19 @@ class StockReservationService
                 return $existing;
             }
 
-            if ($locked->available() < $quantity) {
-                throw new BusinessRuleException("Estoque indisponível para o SKU {$locked->sku}: disponível {$locked->available()}.");
+            $row = $this->stock->lockRow($locked, $storeId);
+
+            if ($row->available() < $quantity) {
+                throw new BusinessRuleException("Estoque indisponível nesta loja para o SKU {$locked->sku}: disponível {$row->available()}.");
             }
 
+            $row->reserved += $quantity;
+            $row->save();
             $locked->stock_reserved += $quantity;
             $locked->save();
 
             return StockReservation::create([
+                'store_id' => $storeId,
                 'product_variant_id' => $locked->id,
                 'quantity' => $quantity,
                 'status' => StockReservation::ACTIVE,
@@ -68,7 +76,7 @@ class StockReservationService
             $variant = $this->closeIfActive($reservation, StockReservation::CONSUMED);
 
             if ($variant) {
-                $this->stock->register($variant, MovementType::Sale, $reservation->quantity, $reason, $actor, reference: $reservation);
+                $this->stock->register($variant, MovementType::Sale, $reservation->quantity, $reason, $actor, reference: $reservation, storeId: $reservation->store_id);
             }
         });
     }
@@ -96,6 +104,10 @@ class StockReservationService
         if ($current->status !== StockReservation::ACTIVE) {
             return null;
         }
+
+        $row = $this->stock->lockRow($variant, $current->store_id ?? CurrentStore::mainId());
+        $row->reserved -= $current->quantity;
+        $row->save();
 
         $variant->stock_reserved -= $current->quantity;
         $variant->save();

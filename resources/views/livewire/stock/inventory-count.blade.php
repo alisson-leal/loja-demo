@@ -57,7 +57,7 @@
                 <tbody>
                     @forelse ($items as $item)
                         @php
-                            $expected = $inventory->isOpen() ? $item->variant->stock_on_hand : $item->expected_quantity;
+                            $expected = $inventory->isOpen() ? $item->variant->stockIn($inventory->store_id)['on_hand'] : $item->expected_quantity;
                             $difference = $item->counted_quantity !== null && $expected !== null ? $item->counted_quantity - $expected : null;
                         @endphp
                         <tr wire:key="item-{{ $item->id }}-{{ $item->counted_quantity ?? 'x' }}">

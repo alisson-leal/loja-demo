@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Sales;
 
+use App\Livewire\Concerns\HasStoreFilter;
 use App\Models\PaymentMethod;
 use App\Models\Sale;
 use App\Models\User;
+use App\Support\CurrentStore;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +19,7 @@ use Livewire\WithPagination;
 #[Title('Vendas')]
 class Index extends Component
 {
-    use WithPagination;
+    use HasStoreFilter, WithPagination;
 
     #[Url(as: 'busca')]
     public string $search = '';
@@ -61,6 +63,8 @@ class Index extends Component
             ->when(in_array($this->status, [Sale::COMPLETED, Sale::CANCELLED], true), fn (Builder $query) => $query->where('status', $this->status))
             ->when(ctype_digit($this->userId) && $user->can('vendas.ver'), fn (Builder $query) => $query->where('user_id', (int) $this->userId))
             ->when(ctype_digit($this->methodId), fn (Builder $query) => $query->whereHas('payments', fn (Builder $payment) => $payment->where('payment_method_id', (int) $this->methodId)))
+            ->inStore($this->storeFilterId())
+            ->with('store:id,name')
             ->when($isDate($this->from), fn (Builder $query) => $query->where('created_at', '>=', $this->from.' 00:00:00'))
             ->when($isDate($this->to), fn (Builder $query) => $query->where('created_at', '<=', $this->to.' 23:59:59'))
             ->latest('id')
@@ -71,6 +75,8 @@ class Index extends Component
             'seesAll' => $user->can('vendas.ver'),
             'users' => $user->can('vendas.ver') ? User::orderBy('name')->get(['id', 'name']) : collect(),
             'methods' => PaymentMethod::orderBy('position')->get(['id', 'name']),
+            'storeOptions' => $this->storeFilterOptions(),
+            'multiple' => CurrentStore::multiple(),
         ]);
     }
 }

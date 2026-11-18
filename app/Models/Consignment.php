@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /** Venda condicional: o cliente leva as peças para provar e devolve ou compra no acerto. */
 class Consignment extends Model
 {
+    use BelongsToStore;
+
     public const OPEN = 'open';
 
     /** Acerto feito: as peças que o cliente ficou aguardam o pagamento no caixa. */
@@ -22,7 +25,7 @@ class Consignment extends Model
         self::CLOSED => 'Encerrada',
     ];
 
-    protected $fillable = ['customer_id', 'user_id', 'due_date', 'notes'];
+    protected $fillable = ['store_id', 'customer_id', 'user_id', 'due_date', 'notes'];
 
     protected function casts(): array
     {

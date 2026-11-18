@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Inventory extends Model
 {
+    use BelongsToStore;
+
     public const OPEN = 'open';
 
     public const FINISHED = 'finished';
@@ -20,7 +23,7 @@ class Inventory extends Model
         self::CANCELLED => 'Cancelado',
     ];
 
-    protected $fillable = ['status', 'category_id', 'notes', 'opened_by', 'closed_by', 'closed_at'];
+    protected $fillable = ['store_id', 'status', 'category_id', 'notes', 'opened_by', 'closed_by', 'closed_at'];
 
     protected function casts(): array
     {
