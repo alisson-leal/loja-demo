@@ -13,8 +13,10 @@ use App\Models\User;
 use App\Support\WhatsApp;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class DemoTest extends TestCase
@@ -53,6 +55,22 @@ class DemoTest extends TestCase
 
         $this->seedDemo();
         $this->assertSame($sales, Sale::count());
+    }
+
+    /** O sorteio muda conforme o dia da restauração: a geração não pode falhar em nenhum deles. */
+    #[DataProvider('resetDays')]
+    public function test_demo_generation_works_on_different_days(string $today): void
+    {
+        Carbon::setTestNow($today.' 03:00:00');
+        $this->seedDemo();
+
+        $this->assertGreaterThan(30, Sale::count());
+        $this->assertSame(0, ProductVariant::where('stock_on_hand', '<', 0)->count());
+    }
+
+    public static function resetDays(): array
+    {
+        return [['2026-11-18'], ['2026-12-24'], ['2027-02-15'], ['2027-03-01'], ['2027-07-09']];
     }
 
     public function test_login_page_lists_demo_accounts_and_they_work(): void

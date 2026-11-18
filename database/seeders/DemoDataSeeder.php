@@ -800,12 +800,17 @@ class DemoDataSeeder extends Seeder
             $seller = $this->pick([$this->users['vendedora'], $this->users['bruna']]);
             $roll = mt_rand(1, 100);
 
-            match (true) {
-                $roll <= 86 => $queue->markSent($message, $seller),
-                $roll <= 88 => $queue->optOut($message, $seller),
-                $roll <= 95 => $queue->skip($message, $seller),
-                default => null,
-            };
+            // Quem pede para sair tem as outras mensagens pendentes descartadas na hora:
+            // essas já não estão mais na fila quando chega a vez delas.
+            try {
+                match (true) {
+                    $roll <= 86 => $queue->markSent($message, $seller),
+                    $roll <= 88 => $queue->optOut($message, $seller),
+                    $roll <= 95 => $queue->skip($message, $seller),
+                    default => null,
+                };
+            } catch (BusinessRuleException) {
+            }
         }
     }
 
