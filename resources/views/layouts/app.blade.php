@@ -150,6 +150,7 @@
             <p class="app-nav-title">Minha conta</p>
             <x-nav-link route="sessions.index" icon="laptop">Sessões</x-nav-link>
             <x-nav-link route="account.password" icon="key">Alterar senha</x-nav-link>
+            <x-nav-link route="help.index" icon="question-circle" active="help.*">Ajuda <kbd class="ms-auto">F1</kbd></x-nav-link>
         </nav>
     </aside>
 
@@ -166,10 +167,15 @@
             </button>
             <h1 class="app-page-title">{{ $title ?? 'Painel' }}</h1>
 
+            <button type="button" class="btn btn-light ms-auto no-print" data-bs-toggle="offcanvas" data-bs-target="#help-panel" aria-controls="help-panel"
+                    id="help-toggle" title="Ajuda desta tela (F1)" aria-label="Ajuda desta tela (F1)">
+                <i class="bi bi-question-circle" aria-hidden="true"></i>
+            </button>
+
             @php($myStores = \App\Support\CurrentStore::multiple() ? \App\Support\CurrentStore::allowed(auth()->user()) : collect())
             @if ($myStores->isNotEmpty())
                 @php($currentStoreId = \App\Support\CurrentStore::id())
-                <div class="dropdown ms-auto">
+                <div class="dropdown">
                     <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="store-switcher" @disabled($myStores->count() === 1)>
                         <i class="bi bi-shop" aria-hidden="true"></i>
                         <span class="d-none d-sm-inline">{{ $myStores->firstWhere('id', $currentStoreId)?->name }}</span>
@@ -188,7 +194,7 @@
                 </div>
             @endif
 
-            <div @class(['dropdown', 'ms-auto' => $myStores->isEmpty()])>
+            <div class="dropdown">
                 <button class="btn btn-light dropdown-toggle app-user" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-person-circle" aria-hidden="true"></i>
                     <span class="d-none d-sm-inline">{{ auth()->user()->name }}</span>
@@ -210,6 +216,27 @@
         <main class="app-content">
             {{ $slot }}
         </main>
+    </div>
+</div>
+
+@php($helpTopic = \App\Support\Help::forRoute(request()->route()?->getName(), auth()->user()))
+<div class="offcanvas offcanvas-end help-panel no-print" tabindex="-1" id="help-panel" aria-labelledby="help-panel-title">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title h5" id="help-panel-title">
+            <i class="bi bi-{{ $helpTopic['icon'] ?? 'question-circle' }}" aria-hidden="true"></i>
+            {{ $helpTopic['title'] ?? 'Ajuda' }}
+        </h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar ajuda"></button>
+    </div>
+    <div class="offcanvas-body">
+        @if ($helpTopic)
+            @include('help.partials.topic', ['topic' => $helpTopic])
+        @else
+            <p>Esta tela ainda não tem uma ajuda específica.</p>
+        @endif
+        <hr>
+        <a href="{{ route('help.index') }}" class="btn btn-light w-100"><i class="bi bi-book" aria-hidden="true"></i> Ver todos os assuntos da ajuda</a>
+        <p class="small text-body-secondary mt-3 mb-0">Dica: aperte <kbd>F1</kbd> em qualquer tela para abrir ou fechar esta ajuda.</p>
     </div>
 </div>
 </body>

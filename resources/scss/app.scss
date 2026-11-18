@@ -395,6 +395,23 @@ option { background: $surface-solid; color: $body-color-dark; }
 .segment-form { flex: 1 1 280px; max-width: 420px; }
 .value-chip .segment-apply { color: $body-color-dark; padding: .2rem .2rem .2rem 0; }
 
+/* Ajuda (F1) */
+kbd {
+    background: rgba(255, 255, 255, .12);
+    color: #e6eefc;
+    border: 1px solid rgba(255, 255, 255, .2);
+    border-radius: .35rem;
+    padding: .05rem .4rem;
+    font-size: .75em;
+}
+.app-nav-link kbd { margin-left: .4rem; opacity: .75; }
+.help-panel { --bs-offcanvas-width: 440px; }
+.help-steps li, .help-tips li { margin-bottom: .5rem; }
+.help-intro { font-size: 1.02rem; }
+.help-list li { padding: .3rem 0; }
+.help-list a { text-decoration: none; }
+.help-list a:hover { text-decoration: underline; }
+
 /* Relatórios: impressão em papel branco, sem menu nem botões */
 @media print {
     .app-sidebar, .app-topbar .btn, .app-topbar .dropdown, .no-print { display: none !important; }

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CustomerExportController;
+use App\Http\Controllers\HelpController;
 use App\Http\Controllers\LabelPrintController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SaleReceiptController;
@@ -95,6 +96,8 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/', Dashboard::class)->name('dashboard');
     Route::livewire('/minha-senha', ChangePassword::class)->name('account.password');
     Route::livewire('/sessoes', SessionIndex::class)->name('sessions.index');
+    Route::get('/ajuda', [HelpController::class, 'index'])->name('help.index');
+    Route::get('/ajuda/{topic}', [HelpController::class, 'show'])->where('topic', '[a-z0-9-]+')->name('help.show');
 
     Route::post('/loja/{store}/trabalhar', StoreSwitchController::class)->whereNumber('store')->name('stores.switch');
     Route::livewire('/lojas', StoreIndex::class)->middleware('can:lojas.gerir')->name('stores.index');
