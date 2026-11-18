@@ -4,13 +4,13 @@
 #
 # Antes: usuário de sistema criado e código clonado em /var/www/SISTEMA/app.
 # Uso (como administrador):
-#   sudo bash /var/www/lojademo/app/deploy/preparar-vps.sh lojademo lojademo.demo.devzero1.com.br
+#   sudo bash /var/www/lojademo/app/deploy/preparar-vps.sh lojademo lojademo.devzero1.com.br
 #
 # Pode ser repetido: o que já existe é mantido.
 set -euo pipefail
 
 APP="${1:?Informe o nome do sistema (o mesmo do usuário), ex.: lojademo}"
-DOMINIO="${2:?Informe o domínio, ex.: lojademo.demo.devzero1.com.br}"
+DOMINIO="${2:?Informe o domínio, ex.: lojademo.devzero1.com.br}"
 BASE="/var/www/${APP}"
 CODIGO="${BASE}/app"
 

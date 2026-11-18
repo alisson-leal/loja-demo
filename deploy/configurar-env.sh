@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DOMINIO="${1:?Informe o domínio, ex.: lojademo.demo.devzero1.com.br}"
+DOMINIO="${1:?Informe o domínio, ex.: lojademo.devzero1.com.br}"
 ADMIN_EMAIL="${2:?Informe o e-mail do administrador}"
 ARQ_SENHA="../.db-password"
 
