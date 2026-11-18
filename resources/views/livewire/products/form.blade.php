@@ -145,6 +145,13 @@
                 <div class="d-flex flex-wrap gap-2 mb-3">
                     <button type="button" class="btn btn-outline-primary" wire:click="generate" wire:loading.attr="disabled">Gerar combinações</button>
                     <button type="button" class="btn btn-light" wire:click="applyBasePrices">Aplicar preço base a todas</button>
+                    @if ($canEnterStock && $hasNewRows)
+                        <div class="input-group w-auto">
+                            <label for="initialForAll" class="visually-hidden">Estoque inicial para todas as variações novas</label>
+                            <input id="initialForAll" type="number" min="0" step="1" class="form-control grid-medium" placeholder="Qtd." wire:model="initialForAll">
+                            <button type="button" class="btn btn-light" wire:click="applyInitialStock">Estoque inicial em todas</button>
+                        </div>
+                    @endif
                 </div>
                 @error('rows') <div class="alert alert-danger">{{ $message }}</div> @enderror
 
@@ -160,7 +167,7 @@
                                 <th scope="col">Preço</th>
                                 @if ($canSeeCost) <th scope="col">Margem</th> @endif
                                 <th scope="col">Mínimo</th>
-                                <th scope="col">Saldo</th>
+                                <th scope="col">{{ $canEnterStock && $hasNewRows ? 'Saldo / estoque inicial' : 'Saldo' }}</th>
                                 <th scope="col">Ativa</th>
                                 <th scope="col"><span class="visually-hidden">Remover</span></th>
                             </tr>
@@ -194,7 +201,14 @@
                                         <input type="number" step="1" min="0" aria-label="Estoque mínimo de {{ $row['label'] }}" wire:model="rows.{{ $i }}.min_stock" class="form-control form-control-sm grid-small @error('rows.'.$i.'.min_stock') is-invalid @enderror">
                                         @error('rows.'.$i.'.min_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </td>
-                                    <td>{{ $row['on_hand'] }}</td>
+                                    <td>
+                                        @if (! $row['id'] && $canEnterStock)
+                                            <input type="number" step="1" min="0" placeholder="0" aria-label="Estoque inicial de {{ $row['label'] }}" wire:model="rows.{{ $i }}.initial_stock" class="form-control form-control-sm grid-small @error('rows.'.$i.'.initial_stock') is-invalid @enderror">
+                                            @error('rows.'.$i.'.initial_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        @else
+                                            {{ $row['on_hand'] }}
+                                        @endif
+                                    </td>
                                     <td><input class="form-check-input" type="checkbox" aria-label="{{ $row['label'] }} ativa" wire:model="rows.{{ $i }}.is_active"></td>
                                     <td>
                                         @if ($row['can_remove'])
@@ -206,7 +220,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="small text-body-secondary mt-2 mb-0">O saldo é alterado somente pela entrada de mercadorias e pelas movimentações de estoque.</p>
+                <p class="small text-body-secondary mt-2 mb-0">O saldo é alterado somente pela entrada de mercadorias e pelas movimentações de estoque. O estoque inicial das variações novas vira uma entrada de mercadorias ao salvar.</p>
             </div>
         </div>
 

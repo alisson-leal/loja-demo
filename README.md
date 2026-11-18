@@ -7,7 +7,9 @@ Módulos: painel, usuários e perfis de acesso, auditoria, catálogo com variaç
 estoque e inventário, frente de caixa, controle de caixa, trocas e devoluções, clientes (CRM),
 marketing (campanhas, fila de WhatsApp, aniversários e agradecimento pela compra, com consentimento LGPD),
 financeiro (contas a pagar, recebimentos de cartão com taxas, fluxo de caixa), relatórios gerenciais,
-comissão de vendedores com fechamento mensal e etiquetas com código de barras (EAN-13 ou Code 128).
+comissão de vendedores com fechamento mensal, etiquetas com código de barras (EAN-13 ou Code 128),
+venda condicional (cliente leva para provar, com estoque reservado até o acerto), crediário próprio (carnê, com limite por cliente,
+multa e juros por atraso) e importação de produtos por planilha CSV, além do estoque inicial direto na grade do produto.
 
 Segmento (`LOJA_SEGMENTO`): `infantil`, `adulto` ou `misto`. Em loja adulta somem os recursos de filhos dos clientes.
 

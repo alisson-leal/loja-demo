@@ -6,6 +6,7 @@ use App\Enums\MovementType;
 use App\Exceptions\BusinessRuleException;
 use App\Models\PaymentMethod;
 use App\Models\ProductVariant;
+use App\Models\Receivable;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SalePayment;
@@ -25,6 +26,8 @@ class SaleService
         private readonly AuditLogger $audit,
         private readonly ReceivableService $receivables,
         private readonly PurchaseThanks $thanks,
+        private readonly CrediarioService $crediario,
+        private readonly ConsignmentService $consignments,
     ) {}
 
     /**
@@ -44,6 +47,7 @@ class SaleService
         int $orderDiscount,
         ?string $notes,
         string $token,
+        ?int $consignmentId = null,
     ): Sale {
         if ($cart === []) {
             throw new BusinessRuleException('Inclua ao menos um item na venda.');
@@ -54,15 +58,18 @@ class SaleService
         }
 
         try {
-            return DB::transaction(fn () => $this->persist($actor, $cart, $payments, $customerId, $orderDiscount, $notes, $token));
+            return DB::transaction(fn () => $this->persist($actor, $cart, $payments, $customerId, $orderDiscount, $notes, $token, $consignmentId));
         } catch (UniqueConstraintViolationException) {
             return Sale::where('checkout_token', $token)->firstOrFail();
         }
     }
 
-    private function persist(User $actor, array $cart, array $payments, ?int $customerId, int $orderDiscount, ?string $notes, string $token): Sale
+    private function persist(User $actor, array $cart, array $payments, ?int $customerId, int $orderDiscount, ?string $notes, string $token, ?int $consignmentId): Sale
     {
         $session = $this->cash->lockOpenSession($actor, 'Abra seu caixa antes de vender.');
+
+        // Peças da condicional que o cliente ficou: a reserva sai antes da baixa da venda.
+        $consignment = $consignmentId ? $this->consignments->releaseForSale($consignmentId, $customerId) : null;
 
         // Ordem fixa de bloqueio evita deadlock entre vendas simultâneas.
         usort($cart, fn (array $a, array $b) => $a['variant_id'] <=> $b['variant_id']);
@@ -77,7 +84,7 @@ class SaleService
 
         $this->assertDiscountAllowed($actor, $calculation);
 
-        $settled = $this->settlePayments($payments, $calculation['total']);
+        $settled = $this->settlePayments($payments, $calculation['total'], $customerId, $actor);
 
         $sale = Sale::create([
             'checkout_token' => $token,
@@ -120,6 +127,10 @@ class SaleService
 
         if ($settled['cash_applied'] > 0) {
             $this->cash->recordSale($session, $settled['cash_applied'], $actor, $sale, $reason);
+        }
+
+        if ($consignment) {
+            $this->consignments->attachSale($consignment, $sale);
         }
 
         return $sale;
@@ -180,8 +191,10 @@ class SaleService
      *
      * @return array{rows: list<array<string, mixed>>, change: int, cash_applied: int}
      */
-    private function settlePayments(array $payments, int $total): array
+    private function settlePayments(array $payments, int $total, ?int $customerId, User $actor): array
     {
+        $crediarioCents = 0;
+
         if ($total > 0 && $payments === []) {
             throw new BusinessRuleException('Informe a forma de pagamento.');
         }
@@ -214,6 +227,14 @@ class SaleService
             } else {
                 $nonCash += $payment['amount'];
             }
+
+            if ($method->isCrediario()) {
+                $crediarioCents += $payment['amount'];
+            }
+        }
+
+        if ($crediarioCents > 0) {
+            $this->crediario->assertCanBuy($customerId, $crediarioCents, $actor);
         }
 
         if ($cashRows > 1) {
@@ -278,6 +299,10 @@ class SaleService
 
             if ($locked->returns()->exists()) {
                 throw new BusinessRuleException('Esta venda tem devoluções registradas e não pode ser cancelada.');
+            }
+
+            if (Receivable::crediario()->where('sale_id', $locked->id)->where('status', Receivable::RECEIVED)->exists()) {
+                throw new BusinessRuleException('Esta venda tem parcelas do crediário já pagas e não pode ser cancelada. Registre uma devolução.');
             }
 
             $label = "Cancelamento da venda #{$locked->number()}";

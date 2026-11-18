@@ -81,7 +81,8 @@ class Receivables extends Component
 
     private function baseQuery(): Builder
     {
-        return Receivable::query()
+        // Parcelas do crediário têm tela própria: aqui só maquininha e Pix.
+        return Receivable::query()->notCrediario()
             ->when(ctype_digit($this->methodId), fn (Builder $q) => $q->where('payment_method_id', (int) $this->methodId));
     }
 
@@ -97,7 +98,7 @@ class Receivables extends Component
                 ->orderByDesc('received_at'))
             ->orderBy('id');
 
-        $pending = fn () => Receivable::pending();
+        $pending = fn () => Receivable::pending()->notCrediario();
 
         return view('livewire.finance.receivables', [
             'receivables' => $query->paginate(30),

@@ -117,7 +117,7 @@ class SaleReturnService
             ])->id;
         } else {
             $method = PaymentMethod::where('is_active', true)
-                ->where('type', '!=', PaymentMethod::STORE_CREDIT)
+                ->whereNotIn('type', [PaymentMethod::STORE_CREDIT, PaymentMethod::CREDIARIO])
                 ->find($refundMethodId);
 
             if (! $method) {

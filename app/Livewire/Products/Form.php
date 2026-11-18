@@ -10,6 +10,7 @@ use App\Models\Supplier;
 use App\Models\VariationAttribute;
 use App\Models\VariationValue;
 use App\Services\ProductService;
+use App\Services\StockEntryService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -144,8 +145,23 @@ class Form extends Component
             'min_stock' => '0',
             'is_active' => true,
             'on_hand' => 0,
+            'initial_stock' => '',
             'can_remove' => true,
         ];
+    }
+
+    /** Quantidade usada pelo botão "Aplicar a todas" do estoque inicial. */
+    public string $initialForAll = '';
+
+    public function applyInitialStock(): void
+    {
+        $quantity = ctype_digit(trim($this->initialForAll)) ? trim($this->initialForAll) : '';
+
+        foreach ($this->rows as $index => $row) {
+            if (! $row['id']) {
+                $this->rows[$index]['initial_stock'] = $quantity;
+            }
+        }
     }
 
     /** Monta a grade com todas as combinações dos valores marcados. */
@@ -325,6 +341,7 @@ class Form extends Component
             $rules["rows.{$i}.sale_price"] = $money;
             $rules["rows.{$i}.min_stock"] = ['required', 'integer', 'min:0', 'max:1000000'];
             $rules["rows.{$i}.is_active"] = ['boolean'];
+            $rules["rows.{$i}.initial_stock"] = ['nullable', 'integer', 'min:0', 'max:100000'];
         }
 
         return $rules;
@@ -372,7 +389,7 @@ class Form extends Component
         ];
 
         try {
-            $products->save(
+            $product = $products->save(
                 Auth::user(),
                 $this->productId ? Product::findOrFail($this->productId) : null,
                 $data,
@@ -388,8 +405,40 @@ class Form extends Component
             return;
         }
 
-        session()->flash('success', 'Produto salvo.');
+        $message = 'Produto salvo.';
+        $entryId = $this->registerInitialStock($product);
+
+        if ($entryId) {
+            $message = 'Produto salvo e estoque inicial registrado.';
+            session()->flash('labels_entry', $entryId);
+        }
+
+        session()->flash('success', $message);
         $this->redirectRoute('products.index');
+    }
+
+    /** Variações novas com estoque inicial viram uma entrada de mercadorias. */
+    private function registerInitialStock(Product $product): ?int
+    {
+        $wanted = collect($this->rows)
+            ->filter(fn (array $row) => ! $row['id'] && (int) ($row['initial_stock'] ?? 0) > 0);
+
+        if ($wanted->isEmpty() || ! Gate::allows('estoque.entrada')) {
+            return null;
+        }
+
+        $variants = $product->variants()->get()->keyBy('combination_key');
+        $items = $wanted->map(fn (array $row) => isset($variants[$row['key']]) ? [
+            'variant_id' => $variants[$row['key']]->id,
+            'quantity' => (int) $row['initial_stock'],
+            'unit_cost' => Gate::allows('produtos.ver_custo') ? $row['cost_price'] : null,
+        ] : null)->filter()->values()->all();
+
+        if ($items === []) {
+            return null;
+        }
+
+        return app(StockEntryService::class)->register(Auth::user(), $product->supplier_id, null, 'Estoque inicial do cadastro', $items)->id;
     }
 
     public function render(): View
@@ -405,6 +454,8 @@ class Form extends Component
                 ? Product::findOrFail($this->productId)->images()->whereNotIn('id', $this->removedImageIds)->get()
                 : collect(),
             'canSeeCost' => Auth::user()->can('produtos.ver_custo'),
+            'canEnterStock' => Auth::user()->can('estoque.entrada'),
+            'hasNewRows' => collect($this->rows)->contains(fn (array $row) => ! $row['id']),
             'maxImages' => ProductService::MAX_IMAGES,
         ])->title($this->productId ? 'Editar produto' : 'Novo produto');
     }

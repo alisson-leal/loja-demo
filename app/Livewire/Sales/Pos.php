@@ -3,11 +3,13 @@
 namespace App\Livewire\Sales;
 
 use App\Exceptions\BusinessRuleException;
+use App\Models\Consignment;
 use App\Models\Customer;
 use App\Models\PaymentMethod;
 use App\Models\ProductVariant;
 use App\Models\StoreCredit;
 use App\Services\CashService;
+use App\Services\CrediarioService;
 use App\Services\CustomerService;
 use App\Services\SaleService;
 use App\Support\Money;
@@ -42,6 +44,10 @@ class Pos extends Component
     #[Session]
     public string $checkoutToken = '';
 
+    /** Condicional sendo paga nesta venda (acerto feito na tela da condicional). */
+    #[Session]
+    public ?int $consignmentId = null;
+
     /** @var list<array{method_id: int, label: string, is_cash: bool, amount: string, credit_code: ?string}> */
     public array $payments = [];
 
@@ -68,6 +74,20 @@ class Pos extends Component
         if ($this->checkoutToken === '') {
             $this->checkoutToken = (string) Str::uuid();
         }
+
+        // Vindo do acerto da condicional: o carrinho começa com as peças que o cliente ficou.
+        if ($handoff = session()->pull('pos.consignment')) {
+            $this->reset('payments', 'notes', 'orderDiscount', 'orderDiscountType');
+            $this->cart = $handoff['cart'];
+            $this->customerId = $handoff['customer_id'];
+            $this->consignmentId = $handoff['consignment_id'];
+            $this->checkoutToken = (string) Str::uuid();
+        }
+    }
+
+    public function detachConsignment(): void
+    {
+        $this->consignmentId = null;
     }
 
     #[On('variant-picked')]
@@ -101,7 +121,7 @@ class Pos extends Component
 
     public function clearSale(): void
     {
-        $this->reset('cart', 'customerId', 'orderDiscount', 'orderDiscountType', 'payments', 'notes', 'creditCode');
+        $this->reset('cart', 'customerId', 'orderDiscount', 'orderDiscountType', 'payments', 'notes', 'creditCode', 'consignmentId');
         $this->dispatch('focus-picker');
     }
 
@@ -244,6 +264,7 @@ class Pos extends Component
                 $computation['order_discount'],
                 trim($this->notes) ?: null,
                 $this->checkoutToken,
+                $this->consignmentId,
             );
         } catch (BusinessRuleException $exception) {
             session()->now('error', $exception->getMessage());
@@ -251,7 +272,7 @@ class Pos extends Component
             return null;
         }
 
-        $this->reset('cart', 'customerId', 'orderDiscount', 'orderDiscountType', 'payments', 'notes');
+        $this->reset('cart', 'customerId', 'orderDiscount', 'orderDiscountType', 'payments', 'notes', 'consignmentId');
         $this->checkoutToken = (string) Str::uuid();
 
         session()->flash('success', 'Venda finalizada.');
@@ -273,6 +294,10 @@ class Pos extends Component
             'customerResults' => mb_strlen($term) >= 2 ? Customer::search($term)->orderBy('name')->limit(6)->get() : collect(),
             'canDiscount' => $user->can('pdv.desconto'),
             'canCreateCustomer' => $user->can('clientes.criar'),
+            'consignment' => $this->consignmentId ? Consignment::find($this->consignmentId) : null,
+            'crediarioPosition' => $this->customerId && $user->can('crediario.vender')
+                ? app(CrediarioService::class)->position(Customer::find($this->customerId))
+                : null,
         ]);
     }
 }

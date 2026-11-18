@@ -26,7 +26,21 @@
                             <label class="form-check-label" for="isActive">Ativa</label>
                         </div>
                     </div>
-                    @unless (in_array($currentType, ['cash', 'store_credit'], true))
+                    @if ($currentType === 'crediario')
+                        <div class="col-6 col-md-3">
+                            <x-text-field name="maxInstallments" label="Máximo de parcelas" type="number" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <x-text-field name="settlementDays" label="Dias até a 1ª parcela" type="number" hint="As demais vencem a cada 30 dias" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <x-text-field name="lateFeePercent" label="Multa por atraso (%)" type="number" step="0.01" min="0" hint="Até 2% (Código de Defesa do Consumidor)" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <x-text-field name="interestPercent" label="Juros ao mês (%)" type="number" step="0.01" min="0" hint="Proporcional aos dias de atraso" />
+                        </div>
+                    @endif
+                    @unless (in_array($currentType, ['cash', 'store_credit', 'crediario'], true))
                         <div class="col-6 col-md-3">
                             <x-text-field name="feePercent" label="Taxa da maquininha (%)" type="number" step="0.01" min="0" hint="0 se não houver taxa" />
                         </div>
@@ -74,6 +88,9 @@
                             <td class="small">
                                 @if (in_array($method->type, ['cash', 'store_credit'], true))
                                     -
+                                @elseif ($method->type === 'crediario')
+                                    Até {{ $method->max_installments }}x, 1ª parcela em {{ $method->settlement_days }} dias
+                                    <br>Multa {{ number_format((float) $method->late_fee_percent, 2, ',', '.') }}% e juros {{ number_format((float) $method->interest_percent, 2, ',', '.') }}% ao mês
                                 @else
                                     Taxa {{ number_format((float) $method->fee_percent, 2, ',', '.') }}%,
                                     {{ $method->settlement_days === 0 ? 'cai no mesmo dia' : "cai em {$method->settlement_days} dia(s)" }}

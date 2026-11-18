@@ -32,7 +32,8 @@ class FinanceReports
         [$start, $end] = [$from->toDateString(), $to->toDateString()];
 
         $received = Receivable::where('status', Receivable::RECEIVED)->whereBetween('received_at', [$start, $end])
-            ->groupBy('received_at')->selectRaw('received_at as day, SUM(net_amount) as total')->toBase()->pluck('total', 'day');
+            // Parcelas do crediário entram pelo valor pago, com multa e juros.
+            ->groupBy('received_at')->selectRaw('received_at as day, SUM(COALESCE(received_amount, net_amount)) as total')->toBase()->pluck('total', 'day');
         $expected = Receivable::pending()->whereBetween('due_date', [$start, $end])
             ->groupBy('due_date')->selectRaw('due_date as day, SUM(net_amount) as total')->toBase()->pluck('total', 'day');
         $paid = Payable::where('status', Payable::PAID)->whereBetween('paid_at', [$start, $end])
@@ -219,9 +220,15 @@ class FinanceReports
             ->whereBetween('payables.due_date', [$from->toDateString(), $to->toDateString()])
             ->sum('payables.amount'));
 
+        // Multa e juros recebidos no crediário: receita financeira do período.
+        $interest = Money::toCents(Receivable::where('status', Receivable::RECEIVED)
+            ->whereNotNull('received_amount')
+            ->whereBetween('received_at', [$from->toDateString(), $to->toDateString()])
+            ->sum(DB::raw('received_amount - net_amount')));
+
         $grossProfit = $summary['net'] - $cost - $fees;
         $expenseTotal = $expenses->sum('total');
-        $result = $grossProfit - $expenseTotal;
+        $result = $grossProfit - $expenseTotal + $interest;
 
         return [
             'gross' => $summary['gross'],
@@ -233,6 +240,7 @@ class FinanceReports
             'gross_margin' => $summary['net'] > 0 ? round($grossProfit / $summary['net'] * 100, 1) : null,
             'expenses' => $expenses,
             'expense_total' => $expenseTotal,
+            'interest' => $interest,
             'result' => $result,
             'result_margin' => $summary['net'] > 0 ? round($result / $summary['net'] * 100, 1) : null,
             'merchandise' => $merchandise,

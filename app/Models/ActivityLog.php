@@ -68,6 +68,13 @@ class ActivityLog extends Model
         'commission.percent' => 'Percentual de comissão alterado',
         'commission.closed' => 'Comissões do mês fechadas',
         'commission.reopened' => 'Fechamento de comissões desfeito',
+        'crediario.received' => 'Parcela do crediário recebida',
+        'crediario.limit' => 'Limite de crediário alterado',
+        'consignment.opened' => 'Condicional aberta',
+        'consignment.settled' => 'Acerto de condicional',
+        'consignment.closed' => 'Condicional encerrada sem venda',
+        'consignment.sold' => 'Condicional paga',
+        'product.imported' => 'Produtos importados de planilha',
         'finance.category_saved' => 'Categoria de despesa salva',
     ];
 

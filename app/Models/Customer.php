@@ -25,7 +25,7 @@ class Customer extends Model
 
     protected $fillable = [
         'name', 'cpf', 'birth_date', 'gender', 'phone', 'whatsapp', 'email',
-        'address', 'neighborhood', 'city', 'zip_code', 'notes',
+        'address', 'neighborhood', 'city', 'zip_code', 'notes', 'credit_limit',
     ];
 
     protected function casts(): array
@@ -39,6 +39,7 @@ class Customer extends Model
             'purchases_count' => 'integer',
             'total_spent' => 'decimal:2',
             'last_purchase_at' => 'datetime',
+            'credit_limit' => 'decimal:2',
         ];
     }
 

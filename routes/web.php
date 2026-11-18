@@ -6,6 +6,7 @@ use App\Http\Controllers\CustomerExportController;
 use App\Http\Controllers\LabelPrintController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SaleReceiptController;
+use App\Http\Controllers\SalesPrintController;
 use App\Http\Controllers\UnsubscribeController;
 use App\Livewire\Account\ChangePassword;
 use App\Livewire\Audit\Index as AuditIndex;
@@ -22,6 +23,7 @@ use App\Livewire\Customers\Index as CustomerIndex;
 use App\Livewire\Customers\Show as CustomerShow;
 use App\Livewire\Dashboard;
 use App\Livewire\Finance\CashFlow;
+use App\Livewire\Finance\Crediario;
 use App\Livewire\Finance\ExpenseCategories;
 use App\Livewire\Finance\PayableForm;
 use App\Livewire\Finance\Payables;
@@ -32,6 +34,7 @@ use App\Livewire\Marketing\CampaignIndex;
 use App\Livewire\Marketing\CampaignShow;
 use App\Livewire\Marketing\WhatsappQueue;
 use App\Livewire\Products\Form as ProductForm;
+use App\Livewire\Products\Import as ProductImport;
 use App\Livewire\Products\Index as ProductIndex;
 use App\Livewire\Reports\Commissions;
 use App\Livewire\Reports\ProductsReport;
@@ -39,6 +42,9 @@ use App\Livewire\Reports\ResultReport;
 use App\Livewire\Reports\SalesReport;
 use App\Livewire\Roles\Form as RoleForm;
 use App\Livewire\Roles\Index as RoleIndex;
+use App\Livewire\Sales\ConsignmentForm;
+use App\Livewire\Sales\ConsignmentIndex;
+use App\Livewire\Sales\ConsignmentShow;
 use App\Livewire\Sales\Index as SaleIndex;
 use App\Livewire\Sales\Pos;
 use App\Livewire\Sales\ReturnForm as SaleReturnForm;
@@ -56,6 +62,7 @@ use App\Livewire\Suppliers\Form as SupplierForm;
 use App\Livewire\Suppliers\Index as SupplierIndex;
 use App\Livewire\Users\Form as UserForm;
 use App\Livewire\Users\Index as UserIndex;
+use App\Services\ProductImportService;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/media/{path}', [MediaController::class, 'show'])->where('path', '.*')->name('media');
@@ -108,6 +115,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/vendas/{sale}/comprovante', [SaleReceiptController::class, 'show'])->whereNumber('sale')->name('sales.receipt');
     Route::livewire('/vendas/{sale}/devolucao', SaleReturnForm::class)->whereNumber('sale')->name('sales.return');
 
+    Route::livewire('/condicionais', ConsignmentIndex::class)->name('consignments.index');
+    Route::livewire('/condicionais/nova', ConsignmentForm::class)->middleware('can:condicional.criar')->name('consignments.create');
+    Route::livewire('/condicionais/{consignment}', ConsignmentShow::class)->whereNumber('consignment')->name('consignments.show');
+    Route::get('/condicionais/{consignment}/imprimir', [SalesPrintController::class, 'consignment'])->whereNumber('consignment')->name('consignments.print');
+
+    Route::livewire('/crediario', Crediario::class)->name('crediario.index');
+    Route::get('/crediario/carne/{sale}', [SalesPrintController::class, 'carne'])->whereNumber('sale')->name('crediario.carne');
+
     Route::livewire('/clientes', CustomerIndex::class)->middleware('can:clientes.ver')->name('customers.index');
     Route::livewire('/clientes/novo', CustomerForm::class)->middleware('can:clientes.criar')->name('customers.create');
     Route::get('/clientes/exportar', [CustomerExportController::class, 'download'])->middleware('can:clientes.exportar')->name('customers.export');
@@ -150,6 +165,11 @@ Route::middleware('auth')->group(function () {
 
     Route::livewire('/produtos', ProductIndex::class)->middleware('can:produtos.ver')->name('products.index');
     Route::livewire('/produtos/novo', ProductForm::class)->middleware('can:produtos.criar')->name('products.create');
+    Route::livewire('/produtos/importar', ProductImport::class)->middleware('can:produtos.criar')->name('products.import');
+    Route::get('/produtos/importar/modelo', fn () => response(ProductImportService::template(), 200, [
+        'Content-Type' => 'text/csv; charset=UTF-8',
+        'Content-Disposition' => 'attachment; filename="modelo-importacao-produtos.csv"',
+    ]))->middleware('can:produtos.criar')->name('products.import.template');
     Route::livewire('/produtos/{product}/editar', ProductForm::class)->middleware('can:produtos.editar')
         ->whereNumber('product')->name('products.edit');
 

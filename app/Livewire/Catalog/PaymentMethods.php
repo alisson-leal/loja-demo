@@ -14,6 +14,8 @@ use Livewire\Component;
 #[Title('Formas de pagamento')]
 class PaymentMethods extends Component
 {
+    private const LOCKED_TYPES = [PaymentMethod::CASH, PaymentMethod::STORE_CREDIT, PaymentMethod::CREDIARIO];
+
     #[Locked]
     public ?int $editingId = null;
 
@@ -30,6 +32,10 @@ class PaymentMethods extends Component
     public string $settlementDays = '0';
 
     public string $maxInstallments = '1';
+
+    public string $lateFeePercent = '0';
+
+    public string $interestPercent = '0';
 
     public function mount(): void
     {
@@ -49,6 +55,8 @@ class PaymentMethods extends Component
         $this->installmentFeePercent = $method->installment_fee_percent === null ? '' : (string) (float) $method->installment_fee_percent;
         $this->settlementDays = (string) $method->settlement_days;
         $this->maxInstallments = (string) $method->max_installments;
+        $this->lateFeePercent = (string) (float) $method->late_fee_percent;
+        $this->interestPercent = (string) (float) $method->interest_percent;
         $this->resetValidation();
     }
 
@@ -60,7 +68,7 @@ class PaymentMethods extends Component
 
     private function resetForm(): void
     {
-        $this->reset('editingId', 'name', 'type', 'isActive', 'feePercent', 'installmentFeePercent', 'settlementDays', 'maxInstallments');
+        $this->reset('editingId', 'name', 'type', 'isActive', 'feePercent', 'installmentFeePercent', 'settlementDays', 'maxInstallments', 'lateFeePercent', 'interestPercent');
     }
 
     public function save(AuditLogger $audit): void
@@ -71,8 +79,8 @@ class PaymentMethods extends Component
 
         $existing = $this->editingId ? PaymentMethod::findOrFail($this->editingId) : null;
 
-        // O tipo dos meios que têm regra própria (dinheiro e vale-troca) não muda.
-        $lockedType = $existing && in_array($existing->type, [PaymentMethod::CASH, PaymentMethod::STORE_CREDIT], true);
+        // O tipo dos meios que têm regra própria (dinheiro, vale-troca e crediário) não muda.
+        $lockedType = $existing && in_array($existing->type, self::LOCKED_TYPES, true);
 
         $this->validate([
             'name' => ['required', 'string', 'min:2', 'max:60', Rule::unique('payment_methods', 'name')->ignore($this->editingId)],
@@ -81,25 +89,30 @@ class PaymentMethods extends Component
             'installmentFeePercent' => ['nullable', 'numeric', 'min:0', 'max:30'],
             'settlementDays' => ['required', 'integer', 'min:0', 'max:120'],
             'maxInstallments' => ['required', 'integer', 'min:1', 'max:24'],
+            'lateFeePercent' => ['required', 'numeric', 'min:0', 'max:2'],
+            'interestPercent' => ['required', 'numeric', 'min:0', 'max:10'],
         ], [], [
             'name' => 'nome', 'type' => 'tipo', 'feePercent' => 'taxa', 'installmentFeePercent' => 'taxa parcelada',
-            'settlementDays' => 'prazo', 'maxInstallments' => 'parcelas',
+            'settlementDays' => 'prazo', 'maxInstallments' => 'parcelas', 'lateFeePercent' => 'multa', 'interestPercent' => 'juros',
         ]);
 
         $type = $lockedType ? $existing->type : $this->type;
         // Dinheiro e vale-troca não passam pela maquininha; só crédito parcela.
         $noTerms = in_array($type, [PaymentMethod::CASH, PaymentMethod::STORE_CREDIT], true);
         $isCredit = $type === PaymentMethod::CREDIT;
+        $isCrediario = $type === PaymentMethod::CREDIARIO;
 
         $method = $existing ?? new PaymentMethod(['position' => (int) PaymentMethod::max('position') + 1]);
         $method->fill([
             'name' => $this->name,
             'type' => $type,
             'is_active' => $this->isActive,
-            'fee_percent' => $noTerms ? 0 : $this->feePercent,
+            'fee_percent' => $noTerms || $isCrediario ? 0 : $this->feePercent,
             'installment_fee_percent' => $isCredit && $this->installmentFeePercent !== '' ? $this->installmentFeePercent : null,
             'settlement_days' => $noTerms ? 0 : (int) $this->settlementDays,
-            'max_installments' => $isCredit ? (int) $this->maxInstallments : 1,
+            'max_installments' => $isCredit || $isCrediario ? (int) $this->maxInstallments : 1,
+            'late_fee_percent' => $isCrediario ? $this->lateFeePercent : 0,
+            'interest_percent' => $isCrediario ? $this->interestPercent : 0,
         ])->save();
 
         $audit->record('payment_method.saved', "Forma de pagamento {$method->name} salva.", $method);
@@ -116,8 +129,8 @@ class PaymentMethods extends Component
             'methods' => PaymentMethod::orderBy('position')->orderBy('id')->get(),
             'typeLabels' => PaymentMethod::TYPE_LABELS + [PaymentMethod::STORE_CREDIT => 'Vale-troca'],
             'selectableTypes' => [PaymentMethod::PIX, PaymentMethod::DEBIT, PaymentMethod::CREDIT, PaymentMethod::OTHER],
-            'typeLocked' => $editing && in_array($editing->type, [PaymentMethod::CASH, PaymentMethod::STORE_CREDIT], true),
-            'currentType' => $editing && in_array($editing->type, [PaymentMethod::CASH, PaymentMethod::STORE_CREDIT], true) ? $editing->type : $this->type,
+            'typeLocked' => $editing && in_array($editing->type, self::LOCKED_TYPES, true),
+            'currentType' => $editing && in_array($editing->type, self::LOCKED_TYPES, true) ? $editing->type : $this->type,
         ]);
     }
 }

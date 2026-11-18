@@ -208,7 +208,31 @@ return [
                 'fechar' => 'Fechar o mês e gerar contas a pagar',
             ],
         ],
+        'crediario' => [
+            'label' => 'Crediário',
+            'operations' => [
+                'vender' => 'Vender no crediário (dentro do limite do cliente)',
+                'receber' => 'Receber parcelas',
+                'gerir' => 'Definir limites, vender acima do limite e dispensar multa e juros',
+            ],
+        ],
+        'condicional' => [
+            'label' => 'Venda condicional',
+            'operations' => [
+                'criar' => 'Abrir condicional (cliente leva para provar)',
+                'acertar' => 'Fazer o acerto (devolução e venda)',
+            ],
+        ],
     ],
+
+    /*
+    | Crediário: cliente com parcela vencida há mais que estes dias não compra
+    | no crediário (quem tem a permissão "crediario.gerir" pode liberar).
+    */
+    'credit_block_overdue_days' => (int) env('CREDIARIO_BLOQUEIO_DIAS', 10),
+
+    /* Prazo padrão, em dias, para devolver as peças da condicional. */
+    'consignment_days' => (int) env('CONDICIONAL_PRAZO_DIAS', 3),
 
     /*
     | Perfis criados na instalação. O Administrador tem acesso total por regra
@@ -229,8 +253,12 @@ return [
             'financeiro.ver', 'financeiro.pagar', 'financeiro.receber',
             'relatorios.vendas', 'relatorios.produtos', 'relatorios.resultado',
             'comissoes.ver_propria', 'comissoes.ver', 'comissoes.fechar',
+            'crediario.vender', 'crediario.receber', 'crediario.gerir', 'condicional.criar', 'condicional.acertar',
         ],
-        'Vendedor' => ['produtos.ver', 'estoque.ver', 'pdv.vender', 'pdv.desconto', 'caixa.operar', 'clientes.criar', 'marketing.whatsapp', 'comissoes.ver_propria'],
+        'Vendedor' => [
+            'produtos.ver', 'estoque.ver', 'pdv.vender', 'pdv.desconto', 'caixa.operar', 'clientes.criar', 'marketing.whatsapp', 'comissoes.ver_propria',
+            'crediario.vender', 'crediario.receber', 'condicional.criar', 'condicional.acertar',
+        ],
         'Estoquista' => [
             'produtos.ver', 'produtos.ver_custo', 'cadastros.ver', 'fornecedores.ver',
             'estoque.ver', 'estoque.entrada', 'estoque.movimentar', 'estoque.ajustar', 'estoque.inventario',

@@ -26,11 +26,16 @@
                     <div class="col-12 col-md-3"><x-text-field name="neighborhood" label="Bairro" maxlength="100" /></div>
                     <div class="col-8 col-md-2"><x-text-field name="city" label="Cidade" maxlength="100" /></div>
                     <div class="col-4 col-md-2"><x-text-field name="zip_code" label="CEP" maxlength="9" /></div>
-                    <div class="col-12">
+                    <div @class(['col-12', 'col-md-9' => auth()->user()->can('crediario.gerir')])>
                         <label for="notes" class="form-label">Observações</label>
                         <textarea id="notes" rows="2" maxlength="2000" wire:model="notes" class="form-control @error('notes') is-invalid @enderror"></textarea>
                         @error('notes') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
+                    @can('crediario.gerir')
+                        <div class="col-12 col-md-3">
+                            <x-text-field name="credit_limit" label="Limite de crediário (R$)" type="number" step="0.01" min="0" hint="Vazio = sem crediário" />
+                        </div>
+                    @endcan
                 </div>
             </div>
         </div>

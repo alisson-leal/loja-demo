@@ -21,7 +21,7 @@
         <nav class="app-nav" aria-label="Menu principal">
             <x-nav-link route="dashboard" icon="grid-1x2">Painel</x-nav-link>
 
-            @canany(['pdv.vender', 'caixa.operar', 'caixa.gerir', 'vendas.ver'])
+            @canany(['pdv.vender', 'caixa.operar', 'caixa.gerir', 'vendas.ver', 'condicional.criar', 'condicional.acertar', 'crediario.receber', 'crediario.gerir'])
                 <p class="app-nav-title">Vendas</p>
             @endcanany
             @can('pdv.vender')
@@ -35,6 +35,13 @@
             @endcanany
             @canany(['pdv.vender', 'vendas.ver'])
                 <x-nav-link route="sales.index" icon="receipt" active="sales.*">Vendas realizadas</x-nav-link>
+            @endcanany
+            @canany(['condicional.criar', 'condicional.acertar'])
+                @php($consignmentsOverdue = \App\Models\Consignment::where('status', 'open')->whereDate('due_date', '<', today())->count())
+                <x-nav-link route="consignments.index" icon="bag-heart" active="consignments.*">Condicionais @if ($consignmentsOverdue > 0)<span class="badge rounded-pill text-bg-danger ms-1">{{ $consignmentsOverdue }}</span>@endif</x-nav-link>
+            @endcanany
+            @canany(['crediario.receber', 'crediario.gerir'])
+                <x-nav-link route="crediario.index" icon="journal-text">Crediário</x-nav-link>
             @endcanany
 
             @can('clientes.ver')

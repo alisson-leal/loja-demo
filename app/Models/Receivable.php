@@ -37,9 +37,33 @@ class Receivable extends Model
             'gross_amount' => 'decimal:2',
             'fee_amount' => 'decimal:2',
             'net_amount' => 'decimal:2',
+            'received_amount' => 'decimal:2',
+            'charges_waived' => 'boolean',
             'installment' => 'integer',
             'installments' => 'integer',
         ];
+    }
+
+    public function receivedMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class, 'received_method_id');
+    }
+
+    /** Parcelas do crediário próprio da loja. */
+    public function scopeCrediario(Builder $query): Builder
+    {
+        return $query->whereHas('method', fn (Builder $m) => $m->where('type', PaymentMethod::CREDIARIO));
+    }
+
+    /** Recebimentos de maquininha e Pix (tudo que não é crediário). */
+    public function scopeNotCrediario(Builder $query): Builder
+    {
+        return $query->whereHas('method', fn (Builder $m) => $m->where('type', '!=', PaymentMethod::CREDIARIO));
+    }
+
+    public function isOverdue(): bool
+    {
+        return $this->status === self::PENDING && $this->due_date->lt(today());
     }
 
     public function sale(): BelongsTo

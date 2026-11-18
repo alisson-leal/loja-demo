@@ -84,7 +84,8 @@ class ReceivableService
         }
 
         return DB::transaction(function () use ($ids, $receivedAt, $actor) {
-            $updated = Receivable::whereIn('id', $ids)->pending()->update([
+            // O crediário é recebido no caixa, com multa e juros: não entra aqui.
+            $updated = Receivable::whereIn('id', $ids)->pending()->notCrediario()->update([
                 'status' => Receivable::RECEIVED,
                 'received_at' => $receivedAt->toDateString(),
                 'received_by' => $actor->id,

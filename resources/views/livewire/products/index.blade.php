@@ -2,7 +2,7 @@
     <x-flash />
 
     <div class="row g-2 mb-3 align-items-end">
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-3">
             <label for="search" class="form-label">Buscar</label>
             <input id="search" type="search" class="form-control" placeholder="Nome, código, SKU ou código de barras" wire:model.live.debounce.300ms="search">
         </div>
@@ -33,7 +33,8 @@
             </select>
         </div>
         @can('produtos.criar')
-            <div class="col-6 col-lg-1 text-end">
+            <div class="col-12 col-lg-2 d-flex gap-2 justify-content-end">
+                <a href="{{ route('products.import') }}" class="btn btn-light" title="Importar planilha"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i> Importar</a>
                 <a href="{{ route('products.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Novo</a>
             </div>
         @endcan

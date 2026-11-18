@@ -95,7 +95,7 @@ class ReturnForm extends Component
     {
         return view('livewire.sales.return-form', [
             'sale' => Sale::with('items')->findOrFail($this->saleId),
-            'methods' => PaymentMethod::selectable()->get(),
+            'methods' => PaymentMethod::selectable()->where('type', '!=', PaymentMethod::CREDIARIO)->get(),
             'needsSupervisor' => ! Gate::allows('vendas.devolver'),
         ]);
     }

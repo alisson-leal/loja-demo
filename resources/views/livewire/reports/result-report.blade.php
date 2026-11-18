@@ -36,6 +36,9 @@
                             @if ($r['expenses']->isEmpty())
                                 <tr><td class="text-body-secondary">(-) Despesas</td><td class="text-end text-nowrap">{{ Money::format(0) }}</td><td></td></tr>
                             @endif
+                            @if ($r['interest'] > 0)
+                                <tr><td>(+) Multa e juros do crediário</td><td class="text-end text-nowrap">{{ Money::format($r['interest'] / 100) }}</td><td class="text-end">{{ $pct($r['interest']) }}</td></tr>
+                            @endif
                             <tr class="report-total">
                                 <th scope="row">= {{ $r['result'] >= 0 ? 'Lucro' : 'Prejuízo' }} do período</th>
                                 <td @class(['text-end', 'text-nowrap', 'text-danger' => $r['result'] < 0]) id="period-result">{{ Money::format($r['result'] / 100) }}</td>

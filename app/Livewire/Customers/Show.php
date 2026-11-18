@@ -5,6 +5,7 @@ namespace App\Livewire\Customers;
 use App\Models\Customer;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Services\CrediarioService;
 use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,9 @@ class Show extends Component
 
         return view('livewire.customers.show', [
             'customer' => $customer,
+            'crediario' => auth()->user()->canAny(['crediario.vender', 'crediario.receber', 'crediario.gerir'])
+                ? app(CrediarioService::class)->position($customer)
+                : null,
             'consents' => $customer->consents()->with('user:id,name')->limit(50)->get(),
             'ticket' => $count > 0 ? (int) round(Money::toCents($customer->total_spent) / $count) : 0,
             'frequency' => $frequency,

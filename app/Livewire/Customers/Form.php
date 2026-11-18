@@ -47,6 +47,9 @@ class Form extends Component
 
     public bool $whatsapp_opt_in = false;
 
+    /** Limite de crediário (R$); só quem tem "crediario.gerir" altera. */
+    public string $credit_limit = '';
+
     /** @var list<array{id: ?int, name: string, birth_date: string, clothing_size: string}> */
     public array $children = [];
 
@@ -69,6 +72,7 @@ class Form extends Component
 
         $this->email_opt_in = $model->email_opt_in;
         $this->whatsapp_opt_in = $model->whatsapp_opt_in;
+        $this->credit_limit = $model->credit_limit === null ? '' : (string) $model->credit_limit;
         $this->birth_date = (string) $model->birth_date?->toDateString();
         $this->children = $model->children->map(fn ($child) => [
             'id' => $child->id,
@@ -115,6 +119,7 @@ class Form extends Component
             'city' => ['nullable', 'string', 'max:100'],
             'zip_code' => ['nullable', 'digits:8'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'credit_limit' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'children' => ['array', 'max:20'],
             'children.*.name' => ['required', 'string', 'min:2', 'max:100'],
             'children.*.birth_date' => ['nullable', 'date', 'before_or_equal:today'],
@@ -137,6 +142,8 @@ class Form extends Component
         }
 
         $data = collect($validated)->except(['children', 'email_opt_in', 'whatsapp_opt_in'])
+            // O limite de crédito só muda com permissão de gerir o crediário.
+            ->when(! Gate::allows('crediario.gerir'), fn ($c) => $c->except('credit_limit'))
             ->map(fn ($value) => $value === '' ? null : $value)->all();
 
         // Em loja adulta a tela não mostra filhos: os já cadastrados ficam como estão.

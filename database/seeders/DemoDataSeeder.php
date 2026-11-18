@@ -7,6 +7,7 @@ use App\Enums\MovementType;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Brand;
 use App\Models\CashSession;
+use App\Models\Consignment;
 use App\Models\Customer;
 use App\Models\CustomerSegment;
 use App\Models\ExpenseCategory;
@@ -29,6 +30,8 @@ use App\Services\CashService;
 use App\Services\CatalogService;
 use App\Services\CommissionService;
 use App\Services\ConsentService;
+use App\Services\ConsignmentService;
+use App\Services\CrediarioService;
 use App\Services\CustomerService;
 use App\Services\MarketingEmailSender;
 use App\Services\PayableService;
@@ -143,6 +146,9 @@ class DemoDataSeeder extends Seeder
 
     /** @var array<string, list<array{sale: int, refund: ?int}>> devoluções agendadas por dia */
     private array $returns = [];
+
+    /** @var array<string, list<int>> condicionais que a cliente volta para acertar, por dia */
+    private array $consignmentVisits = [];
 
     private int $customerSeq = 0;
 
@@ -414,6 +420,11 @@ class DemoDataSeeder extends Seeder
             'email' => $hasEmail && $this->chance(70),
         ], $source ?? 'cadastro');
 
+        // Parte dos clientes compra no crediário, com limite definido pela gerente.
+        if ($this->chance(35)) {
+            $customer->forceFill(['credit_limit' => $this->pick([300, 500, 800, 1000, 1500])])->save();
+        }
+
         // Clientes fiéis aparecem mais vezes no sorteio das vendas.
         $repeat = $this->chance(25) ? 6 : ($this->chance(40) ? 2 : 1);
         array_push($this->customerPool, ...array_fill(0, $repeat, $customer->id));
@@ -556,9 +567,18 @@ class DemoDataSeeder extends Seeder
         }
         sort($minutes);
 
+        $this->at($day->setTime(9, 30));
+        $this->receiveInstallments($day, $sellers);
+        $this->settleConsignments($day, $sellers);
+
         foreach ($minutes as $minute) {
             $this->at($day->setTime(intdiv($minute, 60), $minute % 60, mt_rand(0, 59)));
             $this->sell($this->pick($sellers));
+        }
+
+        if (in_array($day->dayOfWeekIso, [2, 4, 6], true) && $this->chance(45)) {
+            $this->at($day->setTime(mt_rand(10, 17), mt_rand(0, 59)));
+            $this->openConsignment($day, $this->pick($sellers));
         }
 
         foreach ($this->returns[$day->toDateString()] ?? [] as $return) {
@@ -607,8 +627,15 @@ class DemoDataSeeder extends Seeder
         $discount = $this->chance(12) ? intdiv($gross * $this->pick([5, 10]), 100) : 0;
         $total = SaleCalculator::calculate($calcLines, $discount)['total'];
 
+        $payments = $this->payments($total);
+
+        // Cliente com limite de crediário às vezes parcela no carnê.
+        if ($customerId && $total >= 8000 && $this->chance(30) && Customer::whereKey($customerId)->whereNotNull('credit_limit')->exists()) {
+            $payments = [['method_id' => $this->methods[PaymentMethod::CREDIARIO], 'amount' => $total, 'installments' => $this->pick([2, 3, 3, 4, 5])]];
+        }
+
         try {
-            $sale = app(SaleService::class)->finalize($seller, $cart, $this->payments($total), $customerId, $discount, null, (string) Str::uuid());
+            $sale = app(SaleService::class)->finalize($seller, $cart, $payments, $customerId, $discount, null, (string) Str::uuid());
         } catch (BusinessRuleException) {
             return;
         }
@@ -629,6 +656,105 @@ class DemoDataSeeder extends Seeder
         if ($this->chance(2.5)) {
             $when = CarbonImmutable::instance(now())->addDays(mt_rand(1, 6))->toDateString();
             $this->returns[$when][] = ['sale' => $sale->id, 'refund' => $this->chance(30) ? $this->methods[PaymentMethod::PIX] : null];
+        }
+    }
+
+    /**
+     * Clientes pagam as parcelas do crediário: a maioria em dia, alguns com
+     * poucos dias de atraso, outros bem atrasados e alguns ainda devendo.
+     */
+    private function receiveInstallments(CarbonImmutable $day, array $sellers): void
+    {
+        $due = Receivable::crediario()->pending()->whereDate('due_date', '<=', $day->toDateString())->get();
+
+        foreach ($due as $installment) {
+            $bucket = ($installment->id * 37) % 100;
+            $delay = match (true) {
+                $bucket < 68 => 0,
+                $bucket < 84 => $installment->id % 5 + 1,
+                $bucket < 93 => $installment->id % 16 + 10,
+                default => null,
+            };
+
+            if ($delay === null || $installment->due_date->copy()->addDays($delay)->gt($day)) {
+                continue;
+            }
+
+            try {
+                app(CrediarioService::class)->receive($installment, $this->methods[$this->chance(60) ? PaymentMethod::PIX : PaymentMethod::CASH], false, $this->pick($sellers));
+            } catch (BusinessRuleException) {
+            }
+        }
+    }
+
+    /** Uma cliente leva peças para provar em casa. */
+    private function openConsignment(CarbonImmutable $day, User $seller): void
+    {
+        $customerId = $this->pick($this->customerPool);
+        $items = [];
+
+        foreach (range(1, mt_rand(2, 4)) as $i) {
+            $id = $this->weightedVariant();
+            if ($id !== null && ! isset($items[$id]) && ($this->stock[$id] ?? 0) >= 1) {
+                $items[$id] = 1;
+            }
+        }
+
+        if ($items === []) {
+            return;
+        }
+
+        try {
+            $consignment = app(ConsignmentService::class)->open($seller, $customerId,
+                array_map(fn ($id) => ['variant_id' => $id, 'quantity' => 1], array_keys($items)), $day->addDays(3), null);
+        } catch (BusinessRuleException) {
+            return;
+        }
+
+        foreach ($items as $id => $quantity) {
+            $this->stock[$id] -= $quantity;
+        }
+
+        // A cliente volta no prazo ou um pouco depois; algumas ainda estão com as peças.
+        $this->consignmentVisits[$day->addDays(3 + ($consignment->id % 6 === 0 ? 2 : 0))->toDateString()][] = $consignment->id;
+    }
+
+    private function settleConsignments(CarbonImmutable $day, array $sellers): void
+    {
+        foreach ($this->consignmentVisits[$day->toDateString()] ?? [] as $id) {
+            $consignment = Consignment::with('items')->find($id);
+            $seller = $this->pick($sellers);
+            $returned = [];
+
+            foreach ($consignment->items as $item) {
+                $returned[$item->id] = $this->chance(45) ? 0 : $item->quantity;
+            }
+
+            $this->at($day->setTime(mt_rand(10, 17), mt_rand(0, 59)));
+            $kept = app(ConsignmentService::class)->settle($consignment, $returned, $seller);
+
+            foreach ($consignment->items as $item) {
+                $this->stock[$item->product_variant_id] += $returned[$item->id];
+            }
+
+            if ($kept === 0) {
+                continue;
+            }
+
+            $consignment->refresh();
+            $cart = app(ConsignmentService::class)->cartFor($consignment);
+            $total = $consignment->items->sum(fn ($i) => Money::toCents($i->unit_price) * $i->kept_quantity);
+
+            try {
+                app(SaleService::class)->finalize($seller, array_map(fn ($line) => ['variant_id' => $line['variant_id'], 'quantity' => (int) $line['quantity'], 'discount' => 0], $cart),
+                    [['method_id' => $this->methods[$this->chance(50) ? PaymentMethod::PIX : PaymentMethod::CREDIT], 'amount' => $total]],
+                    $consignment->customer_id, 0, null, (string) Str::uuid(), $consignment->id);
+            } catch (BusinessRuleException) {
+                app(ConsignmentService::class)->closeWithoutSale($consignment, $seller);
+                foreach ($consignment->items as $item) {
+                    $this->stock[$item->product_variant_id] += $item->kept_quantity;
+                }
+            }
         }
     }
 

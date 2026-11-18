@@ -4,9 +4,14 @@
 
     <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
         <a href="{{ route('customers.index') }}" class="align-self-center"><i class="bi bi-arrow-left" aria-hidden="true"></i> Voltar aos clientes</a>
-        @can('clientes.editar')
-            <a href="{{ route('customers.edit', $customer->id) }}" class="btn btn-outline-primary">Editar</a>
-        @endcan
+        <div class="d-flex flex-wrap gap-2">
+            @can('condicional.criar')
+                <a href="{{ route('consignments.create', ['cliente' => $customer->id]) }}" class="btn btn-light"><i class="bi bi-bag-heart" aria-hidden="true"></i> Nova condicional</a>
+            @endcan
+            @can('clientes.editar')
+                <a href="{{ route('customers.edit', $customer->id) }}" class="btn btn-outline-primary">Editar</a>
+            @endcan
+        </div>
     </div>
 
     <div class="row g-3 mb-3">
@@ -45,6 +50,15 @@
                         <dt class="col-4">Cadastro</dt><dd class="col-8">{{ $customer->created_at->format('d/m/Y') }}</dd>
                         @if ($customer->notes)
                             <dt class="col-4">Observações</dt><dd class="col-8">{{ $customer->notes }}</dd>
+                        @endif
+                        @if ($crediario)
+                            <dt class="col-4">Crediário</dt>
+                            <dd class="col-8" id="customer-crediario">
+                                {{ Money::format($crediario['open'] / 100) }} em aberto
+                                @if ($crediario['overdue'] > 0) · <span class="text-danger">{{ Money::format($crediario['overdue'] / 100) }} vencido</span> @endif
+                                · limite {{ $crediario['limit'] === null ? 'não definido' : Money::format($crediario['limit'] / 100) }}
+                                @if ($crediario['open'] > 0) · <a href="{{ route('crediario.index', ['cliente' => $customer->name]) }}">ver parcelas</a> @endif
+                            </dd>
                         @endif
                         <dt class="col-4">Comunicação</dt>
                         <dd class="col-8">

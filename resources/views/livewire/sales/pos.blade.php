@@ -15,6 +15,12 @@
             </div>
         </div>
     @else
+        @if ($consignment)
+            <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span><i class="bi bi-bag-check me-1" aria-hidden="true"></i>Pagamento da <strong>condicional #{{ $consignment->number() }}</strong>: peças que o cliente ficou. Você pode incluir outros produtos.</span>
+                <button type="button" class="btn btn-sm btn-light" wire:click="detachConsignment" wire:confirm="Desvincular a condicional desta venda? As peças continuam reservadas para o cliente.">Desvincular</button>
+            </div>
+        @endif
         <div class="row g-3">
             <div class="col-12 col-xl-7">
                 <div class="card mb-3">
@@ -45,7 +51,7 @@
                                             <td>
                                                 {{ $variant->fullName() }}
                                                 <div class="small text-body-secondary">{{ $variant->sku }}</div>
-                                                @if ((int) $line['quantity'] > $variant->available())
+                                                @if (! $consignment && (int) $line['quantity'] > $variant->available())
                                                     <div class="small text-danger">Disponível: {{ $variant->available() }}</div>
                                                 @endif
                                             </td>
@@ -82,6 +88,13 @@
                                 <div>
                                     <strong>{{ $customer->name }}</strong>
                                     <div class="small text-body-secondary">{{ $customer->phone ?: $customer->email }}</div>
+                                    @if ($crediarioPosition && ($crediarioPosition['limit'] !== null || $crediarioPosition['open'] > 0))
+                                        <div class="small" id="pos-crediario">
+                                            Crediário: {{ Money::format($crediarioPosition['open'] / 100) }} em aberto
+                                            @if ($crediarioPosition['available'] !== null) · disponível {{ Money::format($crediarioPosition['available'] / 100) }} @endif
+                                            @if ($crediarioPosition['overdue'] > 0) <span class="text-danger">· {{ Money::format($crediarioPosition['overdue'] / 100) }} vencido</span> @endif
+                                        </div>
+                                    @endif
                                 </div>
                                 <button type="button" class="btn btn-sm btn-light" wire:click="clearCustomer">Trocar</button>
                             </div>
