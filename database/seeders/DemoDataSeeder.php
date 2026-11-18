@@ -704,9 +704,13 @@ class DemoDataSeeder extends Seeder
             return;
         }
 
+        // A loja não abre no domingo: o prazo e a volta da cliente passam para segunda.
+        $openDay = fn (CarbonImmutable $date) => $date->isSunday() ? $date->addDay() : $date;
+        $due = $openDay($day->addDays(3));
+
         try {
             $consignment = app(ConsignmentService::class)->open($seller, $customerId,
-                array_map(fn ($id) => ['variant_id' => $id, 'quantity' => 1], array_keys($items)), $day->addDays(3), null);
+                array_map(fn ($id) => ['variant_id' => $id, 'quantity' => 1], array_keys($items)), $due, null);
         } catch (BusinessRuleException) {
             return;
         }
@@ -715,8 +719,8 @@ class DemoDataSeeder extends Seeder
             $this->stock[$id] -= $quantity;
         }
 
-        // A cliente volta no prazo ou um pouco depois; algumas ainda estão com as peças.
-        $this->consignmentVisits[$day->addDays(3 + ($consignment->id % 6 === 0 ? 2 : 0))->toDateString()][] = $consignment->id;
+        // A maioria volta no prazo; algumas atrasam dois dias.
+        $this->consignmentVisits[$openDay($due->addDays($consignment->id % 6 === 0 ? 2 : 0))->toDateString()][] = $consignment->id;
     }
 
     private function settleConsignments(CarbonImmutable $day, array $sellers): void
