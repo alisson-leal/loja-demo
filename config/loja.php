@@ -241,6 +241,9 @@ return [
     'plan' => [
         'name' => env('PLANO_NOME', 'Essencial'),
         'max_stores' => max(1, (int) env('PLANO_LOJAS', 1)),
+        // Usuários por loja ativa (cota total = este número x lojas ativas). 0 = sem limite.
+        // Administradores e usuários bloqueados não contam.
+        'users_per_store' => max(0, (int) env('PLANO_USUARIOS_POR_LOJA', 0)),
     ],
 
     /*

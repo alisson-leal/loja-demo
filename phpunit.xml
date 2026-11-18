@@ -26,6 +26,9 @@
         <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_DATABASE" value="lojademo_test"/>
         <env name="DEMO_MODE" value="false"/>
+        <env name="PLANO_NOME" value="Essencial"/>
+        <env name="PLANO_LOJAS" value="1"/>
+        <env name="PLANO_USUARIOS_POR_LOJA" value="0"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

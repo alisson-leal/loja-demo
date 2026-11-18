@@ -34,10 +34,24 @@
         </div>
         @can('usuarios.criar')
             <div class="col-4 col-md-4 text-end">
-                <a href="{{ route('users.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Novo</a>
+                @if ($userPlan['available'] === 0)
+                    <button type="button" class="btn btn-light" disabled title="Limite do plano atingido"><i class="bi bi-lock" aria-hidden="true"></i> Novo</button>
+                @else
+                    <a href="{{ route('users.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Novo</a>
+                @endif
             </div>
         @endcan
     </div>
+
+    @if ($userPlan['max'] !== null)
+        <p class="small text-body-secondary" id="user-plan-usage">
+            <i class="bi bi-people" aria-hidden="true"></i>
+            <strong>{{ $userPlan['used'] }}</strong> de <strong>{{ $userPlan['max'] }}</strong> usuários do plano ({{ $userPlan['per_store'] }} por loja ativa; administradores não contam).
+            @if ($userPlan['available'] === 0)
+                Para cadastrar mais, bloqueie quem não usa mais o sistema ou fale com a DevZero1 sobre ampliar o plano.
+            @endif
+        </p>
+    @endif
 
     <div class="card">
         <div class="table-responsive">

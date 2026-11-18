@@ -13,6 +13,11 @@
                         </span>
                     @endif
                 </p>
+                @if ($userPlan['max'] !== null)
+                    <p class="mb-0 small text-body-secondary" id="plan-users">
+                        Usuários: <strong>{{ $userPlan['used'] }}</strong> de <strong>{{ $userPlan['max'] }}</strong> ({{ $userPlan['per_store'] }} por loja ativa; administradores não contam).
+                    </p>
+                @endif
             </div>
             @if ($plan['available'] > 0)
                 <button type="button" class="btn btn-primary" wire:click="create"><i class="bi bi-plus-lg" aria-hidden="true"></i> Nova loja</button>

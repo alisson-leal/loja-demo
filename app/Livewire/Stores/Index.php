@@ -5,6 +5,7 @@ namespace App\Livewire\Stores;
 use App\Livewire\Concerns\HandlesBusinessRules;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\PlanService;
 use App\Services\StoreService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -103,6 +104,7 @@ class Index extends Component
         return view('livewire.stores.index', [
             'stores' => Store::ordered()->withCount('users')->get(),
             'plan' => $stores->plan(),
+            'userPlan' => app(PlanService::class)->users(),
             'users' => User::where('is_blocked', false)->orderBy('name')->get(['id', 'name', 'email'])
                 ->reject(fn (User $user) => $user->isAdministrator()),
         ]);

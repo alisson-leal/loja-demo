@@ -4,6 +4,7 @@ namespace App\Livewire\Users;
 
 use App\Exceptions\BusinessRuleException;
 use App\Models\User;
+use App\Services\PlanService;
 use App\Services\UserService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -105,6 +106,7 @@ class Index extends Component
         return view('livewire.users.index', [
             'users' => $users,
             'blocking' => $this->blockingId ? User::find($this->blockingId) : null,
+            'userPlan' => app(PlanService::class)->users(),
         ]);
     }
 }

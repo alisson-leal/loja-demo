@@ -16,6 +16,7 @@ class UserService
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly UserSessionService $sessions,
+        private readonly PlanService $plan,
     ) {}
 
     /**
@@ -26,6 +27,10 @@ class UserService
         $this->assertCanGrant($actor, $data['roles'], $data['permissions']);
 
         return DB::transaction(function () use ($data) {
+            if (! in_array(PermissionCatalog::ADMIN_ROLE, $data['roles'], true)) {
+                $this->plan->assertCanAddUser();
+            }
+
             $user = new User([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -76,6 +81,11 @@ class UserService
             if (in_array(PermissionCatalog::ADMIN_ROLE, $currentRoles, true)
                 && ! in_array(PermissionCatalog::ADMIN_ROLE, $data['roles'], true)) {
                 $this->assertAnotherActiveAdminExists($target);
+
+                // Deixar de ser administrador faz o usuário passar a contar no plano.
+                if (! $target->is_blocked) {
+                    $this->plan->assertCanAddUser($target);
+                }
             }
 
             $target->fill([
@@ -157,6 +167,10 @@ class UserService
         }
 
         DB::transaction(function () use ($target) {
+            if (! $target->isAdministrator()) {
+                $this->plan->assertCanAddUser($target);
+            }
+
             $target->forceFill([
                 'is_blocked' => false,
                 'blocked_at' => null,
