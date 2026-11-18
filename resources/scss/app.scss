@@ -19,6 +19,10 @@ $font-size-base: .95rem;
 $border-radius: .75rem;
 $table-th-font-weight: 600;
 $input-focus-border-color: #3aa0ff;
+// O azul da marca é claro o bastante para o Bootstrap escolher texto preto: força branco.
+$min-contrast-ratio: 3;
+$code-color: #5cd6ff;
+$code-color-dark: #5cd6ff;
 
 @import 'bootstrap/scss/bootstrap';
 
@@ -219,8 +223,14 @@ option { background: $surface-solid; color: $body-color-dark; }
 .form-check-input:checked { border-color: #3aa0ff; background-color: $primary; }
 
 .btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-color: #fff;
+    --bs-btn-disabled-color: #fff;
+
     border: 0;
     background: $gradient-action;
+    font-weight: 500;
     box-shadow: 0 10px 26px -6px rgba(22, 119, 255, .75);
 
     &:hover,
