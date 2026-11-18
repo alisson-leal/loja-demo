@@ -50,6 +50,12 @@ final class CustomerFilter
     public static function apply(Builder $query, array $filters): Builder
     {
         $f = self::normalize($filters);
+
+        // Segmentos salvos com filtros de filhos não valem em loja adulta.
+        if (! StoreSegment::childrenEnabled()) {
+            $f = array_merge($f, ['has_children' => '', 'child_size' => '', 'child_age_min' => '', 'child_age_max' => '']);
+        }
+
         $inactiveFrom = now()->subDays((int) config('loja.customer_inactive_days'));
 
         return $query

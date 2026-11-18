@@ -50,6 +50,7 @@
             </div>
         </div>
 
+        @if (\App\Support\StoreSegment::childrenEnabled())
         <div class="card mb-3">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -81,6 +82,7 @@
                 @endforeach
             </div>
         </div>
+        @endif
 
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">Salvar</button>

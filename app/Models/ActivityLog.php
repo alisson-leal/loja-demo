@@ -65,6 +65,9 @@ class ActivityLog extends Model
         'finance.payable_reopened' => 'Pagamento desfeito',
         'finance.payable_cancelled' => 'Conta cancelada',
         'finance.received' => 'Recebimento confirmado',
+        'commission.percent' => 'Percentual de comissão alterado',
+        'commission.closed' => 'Comissões do mês fechadas',
+        'commission.reopened' => 'Fechamento de comissões desfeito',
         'finance.category_saved' => 'Categoria de despesa salva',
     ];
 

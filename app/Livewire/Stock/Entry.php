@@ -80,7 +80,7 @@ class Entry extends Component
         $canSeeCost = Gate::allows('produtos.ver_custo');
 
         try {
-            $entries->register(
+            $entry = $entries->register(
                 Auth::user(),
                 $this->supplierId === '' ? null : (int) $this->supplierId,
                 $this->documentNumber === '' ? null : trim($this->documentNumber),
@@ -98,6 +98,7 @@ class Entry extends Component
         }
 
         session()->flash('success', 'Entrada registrada e estoque atualizado.');
+        session()->flash('labels_entry', $entry->id);
         $this->redirectRoute('stock.history');
     }
 

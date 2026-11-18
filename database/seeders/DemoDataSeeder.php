@@ -27,6 +27,7 @@ use App\Services\BirthdayAutomation;
 use App\Services\CampaignService;
 use App\Services\CashService;
 use App\Services\CatalogService;
+use App\Services\CommissionService;
 use App\Services\ConsentService;
 use App\Services\CustomerService;
 use App\Services\MarketingEmailSender;
@@ -42,6 +43,7 @@ use App\Support\CustomerFilter;
 use App\Support\Money;
 use App\Support\PermissionCatalog;
 use App\Support\SaleCalculator;
+use App\Support\StoreSegment;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -144,6 +146,8 @@ class DemoDataSeeder extends Seeder
 
     private int $customerSeq = 0;
 
+    private int $barcodeSeq = 0;
+
     public function __construct(private int $months = 6) {}
 
     public function run(): void
@@ -224,6 +228,21 @@ class DemoDataSeeder extends Seeder
             $user->assignRole($account['role']);
             $this->users[Str::before($account['email'], '@')] = $user;
         }
+
+        $this->users['vendedora']->forceFill(['commission_percent' => 3])->save();
+        $this->users['bruna']->forceFill(['commission_percent' => 2.5])->save();
+    }
+
+    /** Código EAN-13 interno (prefixo 2, de uso da própria loja) com dígito verificador. */
+    private function ean(int $sequence): string
+    {
+        $digits = '2000'.str_pad((string) $sequence, 8, '0', STR_PAD_LEFT);
+        $sum = 0;
+        foreach (str_split($digits) as $i => $digit) {
+            $sum += (int) $digit * ($i % 2 === 0 ? 1 : 3);
+        }
+
+        return $digits.((10 - $sum % 10) % 10);
     }
 
     private function paymentTerms(): void
@@ -294,7 +313,7 @@ class DemoDataSeeder extends Seeder
                 'internal_code' => null,
                 'sku' => null,
             ], array_map(fn (array $valueIds) => [
-                'id' => null, 'value_ids' => $valueIds, 'sku' => null, 'barcode' => null,
+                'id' => null, 'value_ids' => $valueIds, 'sku' => null, 'barcode' => $this->ean(++$this->barcodeSeq),
                 'sale_price' => number_format($price, 2, '.', ''), 'cost_price' => number_format($cost, 2, '.', ''),
                 'min_stock' => 2, 'is_active' => true,
             ], $combinations));
@@ -367,7 +386,7 @@ class DemoDataSeeder extends Seeder
         $hasEmail = $this->chance(60);
         $children = [];
 
-        if ($this->chance(75)) {
+        if (StoreSegment::childrenEnabled() && $this->chance(75)) {
             foreach (range(1, mt_rand(1, 2)) as $c) {
                 $birth = CarbonImmutable::today()->subDays(mt_rand(120, 11 * 365));
                 $age = $birth->diffInYears(CarbonImmutable::today());
@@ -473,6 +492,14 @@ class DemoDataSeeder extends Seeder
             if ($day->isMonday() && $day->gt($start)) {
                 $this->restock($day);
                 $this->confirmReceivables($day->subDay());
+            }
+
+            // No dia 1 o gerente fecha as comissões do mês anterior, a pagar no dia 5.
+            if ($day->day === 1 && $day->gt($start)) {
+                try {
+                    app(CommissionService::class)->close($day->subMonth(), $day->setDay(5), $this->users['gerente']);
+                } catch (BusinessRuleException) {
+                }
             }
 
             $this->payBills($day, $today);

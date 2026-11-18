@@ -8,14 +8,16 @@
                 @endforeach
             </select>
         </div>
-        <div class="col-6 col-md-3">
-            <label for="who" class="form-label">Quem</label>
-            <select id="who" class="form-select" wire:model.live="who">
-                <option value="todos">Clientes e filhos</option>
-                <option value="clientes">Só clientes</option>
-                <option value="filhos">Só filhos</option>
-            </select>
-        </div>
+        @if ($withChildren)
+            <div class="col-6 col-md-3">
+                <label for="who" class="form-label">Quem</label>
+                <select id="who" class="form-select" wire:model.live="who">
+                    <option value="todos">Clientes e filhos</option>
+                    <option value="clientes">Só clientes</option>
+                    <option value="filhos">Só filhos</option>
+                </select>
+            </div>
+        @endif
     </div>
 
     <div class="card">

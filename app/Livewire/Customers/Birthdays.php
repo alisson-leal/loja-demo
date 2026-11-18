@@ -4,6 +4,7 @@ namespace App\Livewire\Customers;
 
 use App\Models\Customer;
 use App\Models\CustomerChild;
+use App\Support\StoreSegment;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
@@ -37,8 +38,10 @@ class Birthdays extends Component
     {
         $month = max(1, min(12, $this->month));
         $rows = collect();
+        $withChildren = StoreSegment::childrenEnabled();
+        $who = $withChildren ? $this->who : 'clientes';
 
-        if ($this->who !== 'filhos') {
+        if ($who !== 'filhos') {
             $rows = $rows->concat(Customer::whereMonth('birth_date', $month)->get()->map(fn (Customer $customer) => [
                 'key' => "c{$customer->id}",
                 'date' => $customer->birth_date,
@@ -48,7 +51,7 @@ class Birthdays extends Component
             ]));
         }
 
-        if ($this->who !== 'clientes') {
+        if ($who !== 'clientes') {
             $rows = $rows->concat(CustomerChild::with('customer')->whereMonth('birth_date', $month)->get()->map(fn (CustomerChild $child) => [
                 'key' => "f{$child->id}",
                 'date' => $child->birth_date,
@@ -62,6 +65,7 @@ class Birthdays extends Component
             'rows' => $rows->sortBy(fn (array $row) => [$row['date']->day, $row['name']])->values(),
             'months' => self::MONTHS,
             'year' => now()->year,
+            'withChildren' => $withChildren,
         ]);
     }
 }

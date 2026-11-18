@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CustomerExportController;
+use App\Http\Controllers\LabelPrintController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SaleReceiptController;
 use App\Http\Controllers\UnsubscribeController;
@@ -32,6 +33,7 @@ use App\Livewire\Marketing\CampaignShow;
 use App\Livewire\Marketing\WhatsappQueue;
 use App\Livewire\Products\Form as ProductForm;
 use App\Livewire\Products\Index as ProductIndex;
+use App\Livewire\Reports\Commissions;
 use App\Livewire\Reports\ProductsReport;
 use App\Livewire\Reports\ResultReport;
 use App\Livewire\Reports\SalesReport;
@@ -47,6 +49,7 @@ use App\Livewire\Stock\Entry as StockEntryForm;
 use App\Livewire\Stock\History as StockHistory;
 use App\Livewire\Stock\InventoryCount;
 use App\Livewire\Stock\InventoryIndex;
+use App\Livewire\Stock\Labels;
 use App\Livewire\Stock\Movement as StockMovementForm;
 use App\Livewire\Stock\VariantDetail;
 use App\Livewire\Suppliers\Form as SupplierForm;
@@ -129,6 +132,10 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/relatorios/vendas', SalesReport::class)->middleware('can:relatorios.vendas')->name('reports.sales');
     Route::livewire('/relatorios/resultado', ResultReport::class)->middleware('can:relatorios.resultado')->name('reports.result');
     Route::livewire('/relatorios/produtos', ProductsReport::class)->middleware('can:relatorios.produtos')->name('reports.products');
+    Route::livewire('/relatorios/comissoes', Commissions::class)->name('reports.commissions');
+
+    Route::livewire('/estoque/etiquetas', Labels::class)->middleware('can:produtos.ver')->name('stock.labels');
+    Route::get('/estoque/etiquetas/imprimir', [LabelPrintController::class, 'show'])->middleware('can:produtos.ver')->name('stock.labels.print');
 
     Route::livewire('/catalogo/formas-pagamento', PaymentMethodIndex::class)->middleware('can:cadastros.ver')->name('payment-methods.index');
 

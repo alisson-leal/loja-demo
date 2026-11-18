@@ -33,6 +33,12 @@ return [
         'whatsapp_expires_days' => (int) env('MARKETING_WHATSAPP_EXPIRES_DAYS', 3),
     ],
 
+    /*
+    | Segmento da loja: "infantil", "adulto" ou "misto". Em loja adulta somem os
+    | recursos de filhos (cadastro, aniversário do filho e filtros por idade/tamanho).
+    */
+    'segment' => env('LOJA_SEGMENTO', 'infantil'),
+
     /* Dados impressos no comprovante. */
     'store' => [
         'name' => env('STORE_NAME', 'Loja Demo'),
@@ -194,6 +200,14 @@ return [
                 'resultado' => 'Resultado do mês e margens (mostra custos)',
             ],
         ],
+        'comissoes' => [
+            'label' => 'Comissões',
+            'operations' => [
+                'ver_propria' => 'Ver a própria comissão',
+                'ver' => 'Ver comissões de todos e definir percentuais',
+                'fechar' => 'Fechar o mês e gerar contas a pagar',
+            ],
+        ],
     ],
 
     /*
@@ -214,8 +228,9 @@ return [
             'marketing.ver', 'marketing.campanhas', 'marketing.disparar', 'marketing.whatsapp', 'marketing.automacoes',
             'financeiro.ver', 'financeiro.pagar', 'financeiro.receber',
             'relatorios.vendas', 'relatorios.produtos', 'relatorios.resultado',
+            'comissoes.ver_propria', 'comissoes.ver', 'comissoes.fechar',
         ],
-        'Vendedor' => ['produtos.ver', 'estoque.ver', 'pdv.vender', 'pdv.desconto', 'caixa.operar', 'clientes.criar', 'marketing.whatsapp'],
+        'Vendedor' => ['produtos.ver', 'estoque.ver', 'pdv.vender', 'pdv.desconto', 'caixa.operar', 'clientes.criar', 'marketing.whatsapp', 'comissoes.ver_propria'],
         'Estoquista' => [
             'produtos.ver', 'produtos.ver_custo', 'cadastros.ver', 'fornecedores.ver',
             'estoque.ver', 'estoque.entrada', 'estoque.movimentar', 'estoque.ajustar', 'estoque.inventario',

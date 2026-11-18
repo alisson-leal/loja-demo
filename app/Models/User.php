@@ -31,6 +31,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'password_changed_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'commission_percent' => 'decimal:2',
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Models\CustomerChild;
 use App\Models\MarketingAutomation;
 use App\Models\MarketingMessage;
 use App\Support\MessageTemplate;
+use App\Support\StoreSegment;
 use Illuminate\Support\Carbon;
 
 /**
@@ -21,7 +22,9 @@ class BirthdayAutomation
         $today = ($today ?? now())->copy()->startOfDay();
         $created = 0;
 
-        $birthdays = [MarketingAutomation::CUSTOMER_BIRTHDAY, MarketingAutomation::CHILD_BIRTHDAY];
+        $birthdays = StoreSegment::childrenEnabled()
+            ? [MarketingAutomation::CUSTOMER_BIRTHDAY, MarketingAutomation::CHILD_BIRTHDAY]
+            : [MarketingAutomation::CUSTOMER_BIRTHDAY];
 
         foreach (MarketingAutomation::where('enabled', true)->whereIn('key', $birthdays)->get() as $automation) {
             $target = $today->copy()->addDays($automation->days_before);

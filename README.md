@@ -6,7 +6,10 @@ com dados **fictícios** de uma loja de moda infantil para apresentar o sistema 
 Módulos: painel, usuários e perfis de acesso, auditoria, catálogo com variações por SKU, fornecedores,
 estoque e inventário, frente de caixa, controle de caixa, trocas e devoluções, clientes (CRM),
 marketing (campanhas, fila de WhatsApp, aniversários e agradecimento pela compra, com consentimento LGPD),
-financeiro (contas a pagar, recebimentos de cartão com taxas, fluxo de caixa) e relatórios gerenciais.
+financeiro (contas a pagar, recebimentos de cartão com taxas, fluxo de caixa), relatórios gerenciais,
+comissão de vendedores com fechamento mensal e etiquetas com código de barras (EAN-13 ou Code 128).
+
+Segmento (`LOJA_SEGMENTO`): `infantil`, `adulto` ou `misto`. Em loja adulta somem os recursos de filhos dos clientes.
 
 Tecnologias: PHP 8.3, Laravel 13, Livewire 4, Bootstrap 5, MySQL.
 

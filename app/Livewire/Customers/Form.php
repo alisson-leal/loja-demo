@@ -5,6 +5,7 @@ namespace App\Livewire\Customers;
 use App\Models\Customer;
 use App\Rules\Cpf;
 use App\Services\CustomerService;
+use App\Support\StoreSegment;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -138,7 +139,8 @@ class Form extends Component
         $data = collect($validated)->except(['children', 'email_opt_in', 'whatsapp_opt_in'])
             ->map(fn ($value) => $value === '' ? null : $value)->all();
 
-        $children = array_map(fn (array $child) => [
+        // Em loja adulta a tela não mostra filhos: os já cadastrados ficam como estão.
+        $children = ! StoreSegment::childrenEnabled() ? null : array_map(fn (array $child) => [
             'id' => $child['id'] ?? null,
             'name' => trim($child['name']),
             'birth_date' => $child['birth_date'] ?: null,

@@ -64,7 +64,7 @@
                 <x-nav-link route="finance.receivables" icon="credit-card-2-front">Recebimentos de cartão</x-nav-link>
             @endcan
 
-            @canany(['relatorios.vendas', 'relatorios.produtos', 'relatorios.resultado'])
+            @canany(['relatorios.vendas', 'relatorios.produtos', 'relatorios.resultado', 'comissoes.ver', 'comissoes.ver_propria'])
                 <p class="app-nav-title">Relatórios</p>
                 @can('relatorios.vendas')
                     <x-nav-link route="reports.sales" icon="bar-chart">Vendas</x-nav-link>
@@ -75,6 +75,9 @@
                 @can('relatorios.resultado')
                     <x-nav-link route="reports.result" icon="clipboard-data">Resultado</x-nav-link>
                 @endcan
+                @canany(['comissoes.ver', 'comissoes.ver_propria'])
+                    <x-nav-link route="reports.commissions" icon="percent">Comissões</x-nav-link>
+                @endcanany
             @endcanany
 
             @canany(['produtos.ver', 'cadastros.ver', 'fornecedores.ver'])
@@ -101,6 +104,9 @@
             @endcan
             @can('estoque.entrada')
                 <x-nav-link route="stock.entry" icon="box-arrow-in-down">Entrada de mercadorias</x-nav-link>
+            @endcan
+            @can('produtos.ver')
+                <x-nav-link route="stock.labels" icon="upc-scan">Etiquetas</x-nav-link>
             @endcan
             @canany(['estoque.movimentar', 'estoque.ajustar'])
                 <x-nav-link route="stock.movement" icon="arrow-left-right">Movimentar</x-nav-link>

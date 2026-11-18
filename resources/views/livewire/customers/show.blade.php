@@ -26,8 +26,9 @@
         </div>
     </div>
 
+    @php($withChildren = \App\Support\StoreSegment::childrenEnabled())
     <div class="row g-3 mb-3">
-        <div class="col-12 col-xl-7">
+        <div @class(['col-12', 'col-xl-7' => $withChildren])>
             <div class="card h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -73,6 +74,7 @@
                 </div>
             </div>
         </div>
+        @if ($withChildren)
         <div class="col-12 col-xl-5">
             <div class="card h-100">
                 <div class="card-body">
@@ -88,6 +90,7 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
 
     <div class="row g-3">

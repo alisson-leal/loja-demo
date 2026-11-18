@@ -60,6 +60,7 @@
                         @endforeach
                     </select>
                 </div>
+                @if (\App\Support\StoreSegment::childrenEnabled())
                 <div class="col-6 col-md-3 col-xl-2">
                     <label for="has_children" class="form-label">Filhos</label>
                     <select id="has_children" class="form-select" wire:model.live="filters.has_children">
@@ -80,6 +81,7 @@
                     <label for="child_age_max" class="form-label">até</label>
                     <input id="child_age_max" type="number" min="0" step="1" class="form-control" wire:model.live.debounce.400ms="filters.child_age_max">
                 </div>
+                @endif
                 <div class="col-6 col-xl-2">
                     <label for="city" class="form-label">Cidade</label>
                     <input id="city" type="text" class="form-control" wire:model.live.debounce.400ms="filters.city">

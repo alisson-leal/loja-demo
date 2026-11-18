@@ -23,36 +23,18 @@ class CustomerService
 
     /**
      * @param  array<string, mixed>  $data
-     * @param  list<array{id: ?int, name: string, birth_date: ?string, clothing_size: ?string}>  $children
+     * @param  list<array{id: ?int, name: string, birth_date: ?string, clothing_size: ?string}>|null  $children  null mantém os filhos como estão
      * @param  array<string, bool>  $consents  canal => consentiu; canais ausentes não mudam
      */
-    public function save(?Customer $customer, array $data, array $children, array $consents = [], string $consentSource = 'cadastro'): Customer
+    public function save(?Customer $customer, array $data, ?array $children, array $consents = [], string $consentSource = 'cadastro'): Customer
     {
         return DB::transaction(function () use ($customer, $data, $children, $consents, $consentSource) {
             $customer ??= new Customer;
             $customer->fill($data)->save();
 
-            $keptIds = [];
-
-            foreach ($children as $child) {
-                $attributes = [
-                    'name' => $child['name'],
-                    'birth_date' => $child['birth_date'],
-                    'clothing_size' => $child['clothing_size'],
-                ];
-
-                $model = filled($child['id'] ?? null) ? $customer->children()->find($child['id']) : null;
-
-                if ($model) {
-                    $model->update($attributes);
-                } else {
-                    $model = $customer->children()->create($attributes);
-                }
-
-                $keptIds[] = $model->id;
+            if ($children !== null) {
+                $this->syncChildren($customer, $children);
             }
-
-            $customer->children()->whereNotIn('id', $keptIds)->delete();
 
             $this->consents->setMany($customer, $consents, $consentSource);
 
@@ -61,5 +43,31 @@ class CustomerService
 
             return $customer;
         });
+    }
+
+    /** @param list<array{id: ?int, name: string, birth_date: ?string, clothing_size: ?string}> $children */
+    private function syncChildren(Customer $customer, array $children): void
+    {
+        $keptIds = [];
+
+        foreach ($children as $child) {
+            $attributes = [
+                'name' => $child['name'],
+                'birth_date' => $child['birth_date'],
+                'clothing_size' => $child['clothing_size'],
+            ];
+
+            $model = filled($child['id'] ?? null) ? $customer->children()->find($child['id']) : null;
+
+            if ($model) {
+                $model->update($attributes);
+            } else {
+                $model = $customer->children()->create($attributes);
+            }
+
+            $keptIds[] = $model->id;
+        }
+
+        $customer->children()->whereNotIn('id', $keptIds)->delete();
     }
 }

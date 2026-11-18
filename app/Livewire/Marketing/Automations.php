@@ -6,6 +6,7 @@ use App\Models\MarketingAutomation;
 use App\Models\MarketingMessage;
 use App\Services\AuditLogger;
 use App\Support\MessageTemplate;
+use App\Support\StoreSegment;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -34,7 +35,10 @@ class Automations extends Component
     {
         $order = array_flip(array_keys(MarketingAutomation::LABELS));
 
-        return MarketingAutomation::all()->sortBy(fn (MarketingAutomation $a) => $order[$a->key] ?? 99)->keyBy('key');
+        return MarketingAutomation::all()
+            ->reject(fn (MarketingAutomation $a) => $a->isForChildren() && ! StoreSegment::childrenEnabled())
+            ->sortBy(fn (MarketingAutomation $a) => $order[$a->key] ?? 99)
+            ->keyBy('key');
     }
 
     public function save(string $key, AuditLogger $audit): void
@@ -82,7 +86,9 @@ class Automations extends Component
     {
         return view('livewire.marketing.automations', [
             'automations' => $this->automations(),
-            'fields' => MessageTemplate::FIELDS,
+            'fields' => StoreSegment::childrenEnabled()
+                ? MessageTemplate::FIELDS
+                : collect(MessageTemplate::FIELDS)->except(['{filho}', '{idade}', '{data_aniversario}'])->all(),
             'recent' => MarketingMessage::whereNotNull('automation')->where('created_at', '>=', now()->subDays(30))
                 ->selectRaw('automation, channel, status, COUNT(*) as total')->groupBy('automation', 'channel', 'status')->get(),
         ]);
