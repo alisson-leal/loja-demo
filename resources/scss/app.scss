@@ -334,6 +334,14 @@ option { background: $surface-solid; color: $body-color-dark; }
 .stat-value { overflow-wrap: anywhere; font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
 .stat-label { color: $muted; font-size: .82rem; }
 
+// Celular: ícone menor para o texto do cartão caber sem quebrar no meio da palavra.
+@include media-breakpoint-down(sm) {
+    .stat-card .card-body { gap: .6rem; padding: .85rem .75rem; }
+    .stat-icon { flex-basis: 2.25rem; height: 2.25rem; border-radius: 11px; font-size: 1rem; }
+    .stat-value { font-size: 1.35rem; }
+    .stat-label { font-size: .78rem; overflow-wrap: normal; word-break: normal; hyphens: auto; }
+}
+
 .chart-box { position: relative; height: 280px; }
 
 .activity-list li {
