@@ -34,8 +34,10 @@ return [
     ],
 
     /*
-    | Segmento da loja: "infantil", "adulto" ou "misto". Em loja adulta somem os
-    | recursos de filhos (cadastro, aniversário do filho e filtros por idade/tamanho).
+    | Segmento da loja: "infantil", "adulto", "misto" (moda), "eletronicos",
+    | "armarinho" ou "variedades". Os recursos de filhos (cadastro, aniversário
+    | do filho e filtros por idade/tamanho) só aparecem em "infantil" e "misto".
+    | O segmento define as variações iniciais e a planilha de importação.
     */
     'segment' => env('LOJA_SEGMENTO', 'infantil'),
 

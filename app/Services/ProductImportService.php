@@ -12,12 +12,13 @@ use App\Models\User;
 use App\Models\VariationAttribute;
 use App\Models\VariationValue;
 use App\Support\Money;
+use App\Support\StoreSegment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
  * Importa produtos de uma planilha salva como CSV: uma linha por variação
- * (tamanho e cor), agrupadas pelo nome do produto. Primeiro valida tudo e
+ * (variação principal e cor), agrupadas pelo nome do produto. Primeiro valida tudo e
  * mostra a prévia; a importação é tudo ou nada.
  */
 class ProductImportService
@@ -30,7 +31,7 @@ class ProductImportService
         'subcategoria' => 'Subcategoria dentro da categoria (opcional)',
         'marca' => 'Marca (opcional; criada se não existir)',
         'fornecedor' => 'Fornecedor (opcional; criado se não existir)',
-        'tamanho' => 'Tamanho ou numeração (opcional)',
+        'variacao' => 'Variação principal: tamanho, numeração, voltagem ou largura (opcional)',
         'cor' => 'Cor (opcional)',
         'preco_venda' => 'Preço de venda (obrigatório, ex.: 129,90)',
         'preco_custo' => 'Preço de custo (opcional)',
@@ -43,7 +44,7 @@ class ProductImportService
 
     private const ALIASES = [
         'produto' => 'nome', 'preco' => 'preco_venda', 'valor' => 'preco_venda', 'custo' => 'preco_custo',
-        'ean' => 'codigo_barras', 'codigo_de_barras' => 'codigo_barras', 'numeracao' => 'tamanho',
+        'ean' => 'codigo_barras', 'codigo_de_barras' => 'codigo_barras', 'numeracao' => 'variacao', 'tamanho' => 'variacao', 'voltagem' => 'variacao', 'largura' => 'variacao', 'medida' => 'variacao', 'capacidade' => 'variacao',
         'estoque' => 'estoque_inicial', 'quantidade' => 'estoque_inicial', 'qtd' => 'estoque_inicial', 'minimo' => 'estoque_minimo',
     ];
 
@@ -132,7 +133,7 @@ class ProductImportService
             unset($seen);
 
             $key = Str::lower($name);
-            $variantKey = Str::lower(($row['tamanho'] ?? '').'|'.($row['cor'] ?? ''));
+            $variantKey = Str::lower(($row['variacao'] ?? '').'|'.($row['cor'] ?? ''));
 
             $products[$key] ??= [
                 'name' => $name,
@@ -146,11 +147,11 @@ class ProductImportService
             ];
 
             if (isset($products[$key]['variants'][$variantKey])) {
-                $errors[] = "{$line}: a variação ".trim(($row['tamanho'] ?? '').' '.($row['cor'] ?? '')).' já apareceu para este produto.';
+                $errors[] = "{$line}: a variação ".trim(($row['variacao'] ?? '').' '.($row['cor'] ?? '')).' já apareceu para este produto.';
             }
 
             $products[$key]['variants'][$variantKey] = [
-                'size' => $row['tamanho'] ?? '',
+                'size' => $row['variacao'] ?? '',
                 'color' => $row['cor'] ?? '',
                 'price' => $price,
                 'cost' => $cost ?? 0,
@@ -169,7 +170,7 @@ class ProductImportService
             $withSize = collect($product['variants'])->contains(fn ($v) => $v['size'] !== '');
             $withColor = collect($product['variants'])->contains(fn ($v) => $v['color'] !== '');
             if (count($product['variants']) > 1 && ! $withSize && ! $withColor) {
-                $errors[] = "Linha {$product['line']}: o produto \"{$product['name']}\" aparece em várias linhas sem tamanho nem cor.";
+                $errors[] = "Linha {$product['line']}: o produto \"{$product['name']}\" aparece em várias linhas sem variação nem cor.";
             }
         }
 
@@ -197,7 +198,8 @@ class ProductImportService
         }
 
         return DB::transaction(function () use ($products, $actor, $withStock) {
-            $size = VariationAttribute::firstOrCreate(['name' => 'Tamanho'], ['position' => 1]);
+            // A coluna "variacao" vira o atributo principal do segmento (Tamanho, Voltagem, Largura...).
+            $size = VariationAttribute::firstOrCreate(['name' => StoreSegment::primaryVariation()], ['position' => 1]);
             $color = VariationAttribute::firstOrCreate(['name' => 'Cor'], ['position' => 2]);
             $stockBySupplier = [];
 
@@ -261,13 +263,8 @@ class ProductImportService
     /** Modelo de planilha com cabeçalho e exemplos. */
     public static function template(): string
     {
-        $rows = [
-            array_keys(self::COLUMNS),
-            ['Camiseta Básica', 'Masculino', 'Camisetas', 'Marca Exemplo', 'Fornecedor Exemplo', 'P', 'Preto', '59,90', '25,00', '', '', '10', '2', 'Algodão'],
-            ['Camiseta Básica', 'Masculino', 'Camisetas', 'Marca Exemplo', 'Fornecedor Exemplo', 'M', 'Preto', '59,90', '25,00', '', '', '12', '2', ''],
-            ['Tênis Casual', 'Calçados', '', 'Marca Exemplo', '', '38', 'Branco', '219,90', '110,00', '', '', '4', '1', ''],
-            ['Bolsa Transversal', 'Acessórios', 'Bolsas', '', '', '', 'Caramelo', '149,90', '70,00', '', '', '3', '1', ''],
-        ];
+        // Exemplos do segmento da loja (moda, eletrônicos, armarinho ou variedades).
+        $rows = [array_keys(self::COLUMNS), ...StoreSegment::importExamples()];
 
         return "\u{FEFF}".implode("\r\n", array_map(fn ($row) => implode(';', array_map(fn ($cell) => str_contains($cell, ';') ? '"'.$cell.'"' : $cell, $row)), $rows))."\r\n";
     }

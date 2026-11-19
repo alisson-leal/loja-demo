@@ -8,7 +8,7 @@
             <div class="card mb-3">
                 <div class="card-body">
                     <h2 class="h6">1. Prepare a planilha</h2>
-                    <p class="small">Uma linha por variação (tamanho e cor). Linhas com o mesmo nome viram um só produto com várias variações.</p>
+                    <p class="small">Uma linha por variação ({{ mb_strtolower(\App\Support\StoreSegment::primaryVariation()) }} e cor). Linhas com o mesmo nome viram um só produto com várias variações. A coluna <code>variacao</code> vira a variação "{{ \App\Support\StoreSegment::primaryVariation() }}".</p>
                     <a href="{{ route('products.import.template') }}" class="btn btn-outline-primary btn-sm mb-3"><i class="bi bi-download" aria-hidden="true"></i> Baixar planilha modelo</a>
                     <ul class="small mb-0">
                         @foreach ($columns as $column => $description)
