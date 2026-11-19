@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Account\ChangePassword;
 use App\Models\CashSession;
+use App\Models\Consignment;
 use App\Models\Customer;
 use App\Models\ProductVariant;
 use App\Models\Receivable;
@@ -40,6 +41,8 @@ class DemoTest extends TestCase
         $this->assertTrue(Sale::where('store_id', $branch->id)->exists());
         $this->assertTrue(Sale::where('store_id', '!=', $branch->id)->exists());
         $this->assertTrue(StockTransfer::where('status', StockTransfer::RECEIVED)->exists());
+        $this->assertSame(1, StockTransfer::where('status', StockTransfer::IN_TRANSIT)->count(), 'Uma transferência a caminho para demonstrar.');
+        $this->assertGreaterThanOrEqual(2, Consignment::where('status', Consignment::OPEN)->count(), 'Condicionais com o cliente para demonstrar.');
 
         // O saldo de cada loja bate com as movimentações daquela loja.
         foreach (StoreStock::inRandomOrder()->limit(30)->get() as $row) {

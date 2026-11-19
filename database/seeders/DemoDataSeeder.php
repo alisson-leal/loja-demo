@@ -1147,5 +1147,32 @@ class DemoDataSeeder extends Seeder
         if ($customer) {
             app(ConsentService::class)->set($customer, 'email', false, 'descadastro');
         }
+
+        $yesterday = $today->subDay();
+
+        // Sempre há condicionais com o cliente, qualquer que seja o dia da restauração.
+        for ($i = 0; $i < 6 && Consignment::where('status', Consignment::OPEN)->count() < 2; $i++) {
+            $this->at($yesterday->setTime(17, 10 + $i));
+            $this->openConsignment($yesterday, $this->users['vendedora']);
+        }
+
+        $this->pendingTransfer($yesterday);
+    }
+
+    /** Deixa uma transferência a caminho da filial, para a demonstração do recebimento. */
+    private function pendingTransfer(CarbonImmutable $yesterday): void
+    {
+        if (! $this->branchId || StockTransfer::where('status', StockTransfer::IN_TRANSIT)->exists()) {
+            return;
+        }
+
+        $candidates = array_filter(array_keys($this->variants), fn (int $id) => $this->stockAt($this->mainId, $id) >= 6);
+        usort($candidates, fn (int $a, int $b) => $this->variants[$b]['weight'] <=> $this->variants[$a]['weight']);
+        $items = array_map(fn (int $id) => ['variant_id' => $id, 'quantity' => 2], array_slice($candidates, 0, 5));
+
+        if ($items !== []) {
+            $this->at($yesterday->setTime(17, 40));
+            $this->sendTransfer($items, 'Reposição para o fim de semana');
+        }
     }
 }
