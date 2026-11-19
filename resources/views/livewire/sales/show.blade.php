@@ -34,6 +34,12 @@
                                     <td>
                                         {{ $item->description }}
                                         <div class="small text-body-secondary">{{ $item->sku }}@if ($item->returned_quantity) · {{ $item->returned_quantity }} devolvido(s)@endif</div>
+                                        @if ($item->serials)
+                                            <div class="small text-break">Nº de série: {{ implode(', ', $item->serials) }}</div>
+                                        @endif
+                                        @if ($item->warranty_until)
+                                            <div class="small {{ $item->underWarranty() ? 'text-success' : 'text-body-secondary' }}">Garantia até {{ $item->warranty_until->format('d/m/Y') }}{{ $item->underWarranty() ? '' : ' (vencida)' }}</div>
+                                        @endif
                                     </td>
                                     <td>{{ $item->quantity }}</td>
                                     <td class="text-nowrap">{{ Money::format($item->unit_price) }}</td>

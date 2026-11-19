@@ -10,7 +10,7 @@ class Product extends Model
 {
     protected $fillable = [
         'internal_code', 'sku', 'name', 'description', 'category_id', 'brand_id',
-        'supplier_id', 'cost_price', 'sale_price', 'is_active',
+        'supplier_id', 'cost_price', 'sale_price', 'is_active', 'tracks_serial', 'warranty_months',
     ];
 
     protected function casts(): array
@@ -19,6 +19,8 @@ class Product extends Model
             'cost_price' => 'decimal:2',
             'sale_price' => 'decimal:2',
             'is_active' => 'boolean',
+            'tracks_serial' => 'boolean',
+            'warranty_months' => 'integer',
         ];
     }
 

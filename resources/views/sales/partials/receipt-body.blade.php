@@ -20,8 +20,12 @@
     <table style="width: 100%; border-collapse: collapse;">
         @foreach ($sale->items as $item)
             <tr>
-                <td style="padding: 3px 0;">{{ $item->quantity }}x {{ $item->description }}</td>
-                <td style="padding: 3px 0; text-align: right; white-space: nowrap;">{{ Money::format($item->total) }}</td>
+                <td style="padding: 3px 0;">
+                    {{ $item->quantity }}x {{ $item->description }}
+                    @if ($item->serials)<br><span style="font-size: 12px; word-break: break-all;">Nº de série: {{ implode(', ', $item->serials) }}</span>@endif
+                    @if ($item->warranty_until)<br><span style="font-size: 12px;">Garantia até {{ $item->warranty_until->format('d/m/Y') }}</span>@endif
+                </td>
+                <td style="padding: 3px 0; text-align: right; white-space: nowrap; vertical-align: top;">{{ Money::format($item->total) }}</td>
             </tr>
         @endforeach
     </table>

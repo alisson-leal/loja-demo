@@ -31,6 +31,31 @@
         </div>
     </div>
 
+    @if ($variant->product->tracks_serial)
+        <div class="card mb-3" id="serial-units">
+            <div class="card-body">
+                <h2 class="h6">Números de série em estoque ({{ $units->count() }})</h2>
+                @if ($units->isEmpty())
+                    <p class="text-body-secondary mb-0">Nenhuma unidade em estoque.</p>
+                @else
+                    <ul class="list-inline mb-0">
+                        @foreach ($units as $unit)
+                            <li class="list-inline-item mb-1" wire:key="unit-{{ $unit->id }}">
+                                @if ($canSeeWarranty)
+                                    <a href="{{ route('warranty.index', ['busca' => $unit->serial]) }}" class="badge text-bg-light text-decoration-none text-break">{{ $unit->serial }}</a>
+                                @else
+                                    <span class="badge text-bg-light text-break">{{ $unit->serial }}</span>
+                                @endif
+                                @if ($multiple && $unit->store)<span class="small text-body-secondary">{{ $unit->store->name }}</span>@endif
+                                @if ($unit->status === \App\Models\SerialNumber::IN_TRANSIT)<span class="small text-warning">em transferência</span>@endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <div class="card mb-3">
         <div class="card-body pb-0"><h2 class="h6">Movimentações</h2></div>
         <div class="table-responsive">

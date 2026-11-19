@@ -25,7 +25,7 @@
             <div class="col-12 col-xl-7">
                 <div class="card mb-3">
                     <div class="card-body">
-                        <livewire:stock.variant-picker />
+                        <livewire:stock.variant-picker :serials="true" />
                     </div>
                 </div>
 
@@ -54,14 +54,25 @@
                                                 @if (! $consignment && (int) $line['quantity'] > $variant->availableIn($session->store_id))
                                                     <div class="small text-danger">Disponível nesta loja: {{ $variant->availableIn($session->store_id) }}</div>
                                                 @endif
+                                                @if ($variant->product->tracks_serial)
+                                                    <label for="serials-{{ $i }}" class="form-label small mt-1 mb-0">Número de série</label>
+                                                    <textarea id="serials-{{ $i }}" rows="1" class="form-control form-control-sm serial-input" placeholder="Leia ou digite (um por linha)" wire:model.live.debounce.500ms="cart.{{ $i }}.serials" autocomplete="off" spellcheck="false"></textarea>
+                                                @endif
+                                                @if ($variant->product->warranty_months)
+                                                    <div class="small text-body-secondary">Garantia de {{ $variant->product->warranty_months }} {{ $variant->product->warranty_months === 1 ? 'mês' : 'meses' }}</div>
+                                                @endif
                                             </td>
                                             <td class="text-nowrap">{{ Money::format($variant->sale_price) }}</td>
                                             <td>
-                                                <div class="input-group input-group-sm pos-qty">
-                                                    <button type="button" class="btn btn-light" wire:click="changeQuantity({{ $i }}, -1)" aria-label="Diminuir quantidade de {{ $variant->fullName() }}">−</button>
-                                                    <input type="number" min="1" step="1" class="form-control text-center" aria-label="Quantidade de {{ $variant->fullName() }}" wire:model.live.debounce.400ms="cart.{{ $i }}.quantity">
-                                                    <button type="button" class="btn btn-light" wire:click="changeQuantity({{ $i }}, 1)" aria-label="Aumentar quantidade de {{ $variant->fullName() }}">+</button>
-                                                </div>
+                                                @if ($variant->product->tracks_serial)
+                                                    <span class="fw-bold" id="qty-{{ $i }}">{{ (int) $line['quantity'] }}</span>
+                                                @else
+                                                    <div class="input-group input-group-sm pos-qty">
+                                                        <button type="button" class="btn btn-light" wire:click="changeQuantity({{ $i }}, -1)" aria-label="Diminuir quantidade de {{ $variant->fullName() }}">−</button>
+                                                        <input type="number" min="1" step="1" class="form-control text-center" aria-label="Quantidade de {{ $variant->fullName() }}" wire:model.live.debounce.400ms="cart.{{ $i }}.quantity">
+                                                        <button type="button" class="btn btn-light" wire:click="changeQuantity({{ $i }}, 1)" aria-label="Aumentar quantidade de {{ $variant->fullName() }}">+</button>
+                                                    </div>
+                                                @endif
                                             </td>
                                             @if ($canDiscount)
                                                 <td><input type="number" min="0" step="0.01" class="form-control form-control-sm grid-small" aria-label="Desconto de {{ $variant->fullName() }}" wire:model.live.debounce.400ms="cart.{{ $i }}.discount"></td>

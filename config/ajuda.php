@@ -68,6 +68,7 @@ return [
             'tips' => [
                 'Desconto acima do seu limite pede a autorização de um gerente, que digita e-mail e senha na sua tela.',
                 'Para acertar uma condicional, abra a condicional e use **Cobrar no caixa**: as peças já chegam ao carrinho.',
+                'Produto com **número de série**: leia o número da etiqueta da unidade no campo de busca (ele já entra no carrinho) ou digite-o no campo **Número de série** do item. A quantidade é a dos números informados.',
             ],
         ],
 
@@ -105,6 +106,25 @@ return [
             'tips' => [
                 'Se o seu perfil não pode cancelar ou devolver sozinho, o sistema pede a autorização de um gerente.',
                 'O vale-troca fica no cadastro do cliente e pode ser usado como forma de pagamento numa próxima compra.',
+                'Na devolução de produto com número de série, marque as unidades que o cliente trouxe. Sem a opção **Volta ao estoque** (defeito), a unidade sai de circulação.',
+            ],
+        ],
+
+        'garantias' => [
+            'title' => 'Garantias e números de série',
+            'section' => 'Vendas',
+            'icon' => 'shield-check',
+            'can' => ['vendas.garantia'],
+            'routes' => ['warranty.index'],
+            'intro' => 'Consulta da garantia de um produto vendido e do caminho de cada unidade com número de série.',
+            'steps' => [
+                'Leia ou digite o **número de série** da unidade (ao menos 3 caracteres), ou informe o **número da venda**.',
+                'Para cada unidade aparecem a situação (em estoque, vendido, em transferência, fora do estoque), a venda, o cliente e até quando vai a garantia.',
+                'O **Histórico** mostra cada passo da unidade: entrada, venda, devolução, transferência e saídas.',
+            ],
+            'tips' => [
+                'A garantia é contada da data da venda, com o prazo em meses do cadastro do produto. Ela sai impressa no comprovante.',
+                'O prazo de garantia legal (CDC) continua valendo além da garantia da loja.',
             ],
         ],
 
@@ -350,6 +370,7 @@ return [
             'tips' => [
                 'Cada combinação (por exemplo, M / Azul ou 220 V / Preto) é um SKU com código de barras próprio.',
                 'Produto sem variação (um cabo, um kit de agulhas) é cadastrado sem marcar nenhuma variação.',
+                'Em **Garantia (meses)**, informe o prazo de garantia da loja: ele sai no comprovante. Marque **Controlar número de série** para eletrônicos e aparelhos: cada unidade passa a ter o seu número na entrada e na venda (ligue com o estoque do produto zerado).',
                 'Para cadastrar muitos produtos de uma vez, use **Importar**.',
             ],
         ],
@@ -445,6 +466,7 @@ return [
                 'A entrada é feita na loja em que você está trabalhando.',
                 'Depois da entrada, imprima as etiquetas em **Etiquetas > Carregar de uma entrada de mercadorias**.',
                 'A conta a pagar da nota é lançada à parte, em **Contas a pagar**.',
+                'Produto com número de série: digite ou leia os números das unidades, um por linha. A quantidade é calculada pelos números informados.',
             ],
         ],
 
@@ -475,7 +497,10 @@ return [
                 'Escolha o tipo de movimentação, a quantidade e escreva o motivo.',
                 'Clique em **Registrar**. A movimentação fica no histórico e não pode ser apagada; para corrigir, faça outra movimentação.',
             ],
-            'tips' => ['Para acertar o estoque de muitas peças de uma vez, faça um **Inventário**.'],
+            'tips' => [
+                'Para acertar o estoque de muitas peças de uma vez, faça um **Inventário**.',
+                'Produto com número de série: informe os números das unidades movimentadas, em vez da quantidade.',
+            ],
         ],
 
         'historico-estoque' => [
@@ -507,6 +532,7 @@ return [
             'tips' => [
                 'Evite vender peças da área que está sendo contada até concluir o inventário.',
                 'Cada loja tem o seu inventário; ele vale para a loja em que você está trabalhando.',
+                'Produtos com número de série ficam fora do inventário por quantidade: confira as unidades no detalhe do SKU e acerte pela **Movimentação**, informando os números.',
             ],
         ],
 

@@ -36,6 +36,9 @@
             @canany(['pdv.vender', 'vendas.ver'])
                 <x-nav-link route="sales.index" icon="receipt" active="sales.*">Vendas realizadas</x-nav-link>
             @endcanany
+            @can('vendas.garantia')
+                <x-nav-link route="warranty.index" icon="shield-check">Garantias</x-nav-link>
+            @endcan
             @canany(['condicional.criar', 'condicional.acertar'])
                 @php($consignmentsOverdue = \App\Models\Consignment::where('status', 'open')->whereDate('due_date', '<', today())->count())
                 <x-nav-link route="consignments.index" icon="bag-heart" active="consignments.*">Condicionais @if ($consignmentsOverdue > 0)<span class="badge rounded-pill text-bg-danger ms-1">{{ $consignmentsOverdue }}</span>@endif</x-nav-link>

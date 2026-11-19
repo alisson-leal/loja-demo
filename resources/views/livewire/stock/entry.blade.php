@@ -42,11 +42,21 @@
                 <tbody>
                     @forelse ($items as $i => $item)
                         <tr wire:key="item-{{ $item['variant_id'] }}">
-                            <td>{{ $item['label'] }}</td>
+                            <td>
+                                {{ $item['label'] }}
+                                @if ($item['tracks'])
+                                    <label for="serials-{{ $i }}" class="form-label small mt-1 mb-0">Números de série (um por linha)</label>
+                                    <textarea id="serials-{{ $i }}" rows="2" class="form-control form-control-sm serial-input" wire:model.live.debounce.500ms="items.{{ $i }}.serials" autocomplete="off" spellcheck="false"></textarea>
+                                @endif
+                            </td>
                             <td class="text-nowrap">{{ $item['sku'] }}</td>
                             <td>
-                                <input type="number" min="1" step="1" aria-label="Quantidade de {{ $item['label'] }}" wire:model="items.{{ $i }}.quantity" class="form-control form-control-sm grid-small @error('items.'.$i.'.quantity') is-invalid @enderror">
-                                @error('items.'.$i.'.quantity') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                @if ($item['tracks'])
+                                    <span class="fw-bold" id="qty-{{ $i }}">{{ $item['quantity'] }}</span>
+                                @else
+                                    <input type="number" min="1" step="1" aria-label="Quantidade de {{ $item['label'] }}" wire:model="items.{{ $i }}.quantity" class="form-control form-control-sm grid-small @error('items.'.$i.'.quantity') is-invalid @enderror">
+                                @endif
+                                @error('items.'.$i.'.quantity') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </td>
                             @if ($canSeeCost)
                                 <td>

@@ -3,19 +3,27 @@
 namespace App\Livewire\Stock;
 
 use App\Models\ProductVariant;
+use App\Models\SerialNumber;
+use App\Support\CurrentStore;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
  * Busca de variação por nome, SKU ou leitor de código de barras.
- * Avisa o componente pai com o evento "variant-picked".
+ * Avisa o componente pai com o evento "variant-picked". Com $serials, lê
+ * também o número de série de uma unidade desta loja ("serial-picked").
  */
 class VariantPicker extends Component
 {
     public string $term = '';
 
     public string $notFound = '';
+
+    #[Locked]
+    public bool $serials = false;
 
     public function pick(int $id): void
     {
@@ -39,6 +47,13 @@ class VariantPicker extends Component
             ->where(fn (Builder $query) => $query->where('barcode', $term)->orWhere('sku', $term))
             ->first();
 
+        if (! $exact && $this->serials && $unit = $this->unitInStock($term)) {
+            $this->dispatch('serial-picked', id: $unit->product_variant_id, serial: $unit->serial);
+            $this->reset('term', 'notFound');
+
+            return;
+        }
+
         $matches = $exact ? collect([$exact]) : ProductVariant::operational()->search($term)->limit(2)->get();
 
         if ($matches->count() === 1) {
@@ -48,6 +63,15 @@ class VariantPicker extends Component
         }
 
         $this->notFound = $matches->isEmpty() ? "Nenhum item encontrado para \"{$term}\"." : '';
+    }
+
+    private function unitInStock(string $term): ?SerialNumber
+    {
+        return SerialNumber::where('serial', Str::upper($term))
+            ->where('status', SerialNumber::IN_STOCK)
+            ->where('store_id', CurrentStore::id())
+            ->whereHas('variant', fn (Builder $query) => $query->operational())
+            ->first();
     }
 
     public function render(): View

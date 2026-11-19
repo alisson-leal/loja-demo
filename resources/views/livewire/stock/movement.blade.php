@@ -13,7 +13,7 @@
                         <button type="button" class="btn btn-sm btn-light" wire:click="clearVariant">Trocar</button>
                     </div>
                 @else
-                    <livewire:stock.variant-picker />
+                    <livewire:stock.variant-picker :serials="true" />
                     @error('variantId') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                 @endif
             </div>
@@ -33,9 +33,24 @@
                             </select>
                             @error('type') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-12 col-md-5">
-                            <x-text-field name="quantity" label="Quantidade" type="number" required min="1" step="1" />
-                        </div>
+                        @if ($tracked)
+                            <div class="col-12 col-md-5">
+                                <span class="form-label d-block">Quantidade</span>
+                                <div class="form-control-plaintext fw-bold" id="serial-count">{{ $serialCount }}</div>
+                                @error('quantity') <div class="text-danger small">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-12">
+                                <label for="serials" class="form-label">Números de série (um por linha)</label>
+                                <textarea id="serials" rows="3" class="form-control serial-input" wire:model.live.debounce.500ms="serials" autocomplete="off" spellcheck="false" aria-describedby="serialsHelp"></textarea>
+                                <div id="serialsHelp" class="form-text text-break">
+                                    Na saída, use números que estão nesta loja: {{ $inStock->isNotEmpty() ? $inStock->implode(', ') : 'nenhum no momento' }}.
+                                </div>
+                            </div>
+                        @else
+                            <div class="col-12 col-md-5">
+                                <x-text-field name="quantity" label="Quantidade" type="number" required min="1" step="1" />
+                            </div>
+                        @endif
                         <div class="col-12">
                             <x-text-field name="reason" label="Motivo" required maxlength="255" />
                         </div>

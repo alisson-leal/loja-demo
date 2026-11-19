@@ -52,6 +52,10 @@ class Form extends Component
 
     public bool $isActive = true;
 
+    public bool $tracksSerial = false;
+
+    public string $warrantyMonths = '';
+
     /** @var array<int, list<string>> */
     public array $selectedValues = [];
 
@@ -103,6 +107,8 @@ class Form extends Component
         $this->costPrice = $canSeeCost ? (string) $product->cost_price : '0.00';
         $this->salePrice = (string) $product->sale_price;
         $this->isActive = $product->is_active;
+        $this->tracksSerial = $product->tracks_serial;
+        $this->warrantyMonths = (string) ($product->warranty_months ?? '');
 
         foreach ($product->variants as $variant) {
             foreach ($variant->values as $value) {
@@ -148,6 +154,16 @@ class Form extends Component
             'initial_stock' => '',
             'can_remove' => true,
         ];
+    }
+
+    /** Com número de série o estoque inicial some da tela: as unidades entram pela entrada de mercadorias. */
+    public function updatedTracksSerial(): void
+    {
+        if ($this->tracksSerial) {
+            foreach ($this->rows as $index => $row) {
+                $this->rows[$index]['initial_stock'] = '';
+            }
+        }
     }
 
     /** Quantidade usada pelo botão "Aplicar a todas" do estoque inicial. */
@@ -330,6 +346,8 @@ class Form extends Component
             'costPrice' => $money,
             'salePrice' => $money,
             'isActive' => ['boolean'],
+            'tracksSerial' => ['boolean'],
+            'warrantyMonths' => ['nullable', 'integer', 'min:0', 'max:120'],
             'rows' => ['required', 'array', 'min:1', 'max:'.self::MAX_COMBINATIONS],
             'uploads.*' => self::IMAGE_RULES,
         ];
@@ -341,7 +359,10 @@ class Form extends Component
             $rules["rows.{$i}.sale_price"] = $money;
             $rules["rows.{$i}.min_stock"] = ['required', 'integer', 'min:0', 'max:1000000'];
             $rules["rows.{$i}.is_active"] = ['boolean'];
-            $rules["rows.{$i}.initial_stock"] = ['nullable', 'integer', 'min:0', 'max:100000'];
+            // Com número de série, as unidades entram pela entrada de mercadorias, com os números.
+            $rules["rows.{$i}.initial_stock"] = $this->tracksSerial
+                ? ['nullable', 'integer', 'max:0']
+                : ['nullable', 'integer', 'min:0', 'max:100000'];
         }
 
         return $rules;
@@ -353,6 +374,7 @@ class Form extends Component
             'name' => 'nome', 'description' => 'descrição', 'categoryId' => 'categoria', 'brandId' => 'marca',
             'supplierId' => 'fornecedor', 'internalCode' => 'código interno', 'sku' => 'SKU',
             'costPrice' => 'custo', 'salePrice' => 'preço de venda', 'rows' => 'variações',
+            'warrantyMonths' => 'garantia',
         ];
 
         foreach (array_keys($this->rows) as $i) {
@@ -371,7 +393,9 @@ class Form extends Component
         Gate::authorize($this->productId ? 'produtos.editar' : 'produtos.criar');
 
         $this->name = trim($this->name);
-        $this->validate($this->rulesFor(), [], $this->attributeNames());
+        $this->validate($this->rulesFor(), [
+            'rows.*.initial_stock.max' => 'Com número de série, registre o estoque pela entrada de mercadorias, informando os números.',
+        ], $this->attributeNames());
 
         $nullable = fn (string $value) => $value === '' ? null : $value;
 
@@ -386,6 +410,8 @@ class Form extends Component
             'cost_price' => $this->costPrice,
             'sale_price' => $this->salePrice,
             'is_active' => $this->isActive,
+            'tracks_serial' => $this->tracksSerial,
+            'warranty_months' => $this->warrantyMonths === '' ? null : (int) $this->warrantyMonths,
         ];
 
         try {

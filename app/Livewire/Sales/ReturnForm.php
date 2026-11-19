@@ -7,6 +7,7 @@ use App\Livewire\Concerns\RequiresSupervisor;
 use App\Models\PaymentMethod;
 use App\Models\Sale;
 use App\Services\SaleReturnService;
+use App\Services\SerialService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -28,6 +29,9 @@ class ReturnForm extends Component
     /** @var array<int, bool> */
     public array $restock = [];
 
+    /** @var array<int, list<string>> id do item => números de série marcados para devolver */
+    public array $returnSerials = [];
+
     public string $reason = '';
 
     /** "credit" gera vale-troca; um número é a forma de pagamento do reembolso. */
@@ -45,12 +49,25 @@ class ReturnForm extends Component
         foreach ($model->items as $item) {
             $this->quantities[$item->id] = '0';
             $this->restock[$item->id] = true;
+
+            if ($item->serials) {
+                $this->returnSerials[$item->id] = [];
+            }
+        }
+    }
+
+    public function updatedReturnSerials(): void
+    {
+        foreach ($this->returnSerials as $itemId => $serials) {
+            $this->quantities[$itemId] = (string) count((array) $serials);
         }
     }
 
     public function save(SaleReturnService $returns): void
     {
         abort_unless(Gate::any(['vendas.devolver', 'pdv.vender']), 403);
+
+        $this->updatedReturnSerials();
 
         $this->validate([
             'quantities.*' => ['required', 'integer', 'min:0', 'max:1000000'],
@@ -65,6 +82,7 @@ class ReturnForm extends Component
                 'sale_item_id' => (int) $itemId,
                 'quantity' => (int) $quantity,
                 'restock' => (bool) ($this->restock[$itemId] ?? false),
+                'serials' => array_values(array_map('strval', (array) ($this->returnSerials[$itemId] ?? []))),
             ];
         }
 
@@ -91,10 +109,13 @@ class ReturnForm extends Component
         $this->redirectRoute('sales.show', ['sale' => $this->saleId]);
     }
 
-    public function render(): View
+    public function render(SerialService $serials): View
     {
+        $sale = Sale::with('items')->findOrFail($this->saleId);
+
         return view('livewire.sales.return-form', [
-            'sale' => Sale::with('items')->findOrFail($this->saleId),
+            'sale' => $sale,
+            'outstanding' => $sale->items->filter(fn ($item) => $item->serials)->mapWithKeys(fn ($item) => [$item->id => $serials->stillSold($item)]),
             'methods' => PaymentMethod::selectable()->where('type', '!=', PaymentMethod::CREDIARIO)->get(),
             'needsSupervisor' => ! Gate::allows('vendas.devolver'),
         ]);

@@ -6,6 +6,7 @@ use App\Exceptions\BusinessRuleException;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use App\Models\SerialNumber;
 use App\Models\User;
 use App\Models\VariantCostHistory;
 use App\Models\VariationValue;
@@ -99,6 +100,27 @@ class ProductService
         return $saved;
     }
 
+    /**
+     * Ligar o controle de série exige estoque zerado (as unidades entram depois,
+     * com os números). Desligar exige que nenhuma unidade esteja em estoque.
+     */
+    private function assertCanChangeSerialControl(Product $product, bool $enable): void
+    {
+        if (! $product->exists) {
+            return;
+        }
+
+        $variantIds = $product->variants()->pluck('id');
+
+        if ($enable && ProductVariant::whereIn('id', $variantIds)->where(fn ($q) => $q->where('stock_on_hand', '!=', 0)->orWhere('stock_reserved', '!=', 0))->exists()) {
+            throw new BusinessRuleException('Para controlar o número de série, o estoque do produto precisa estar zerado. Zere o saldo e registre a entrada informando os números.');
+        }
+
+        if (! $enable && SerialNumber::whereIn('product_variant_id', $variantIds)->whereIn('status', [SerialNumber::IN_STOCK, SerialNumber::IN_TRANSIT])->exists()) {
+            throw new BusinessRuleException('Há unidades com número de série em estoque ou em transferência. Dê saída nelas antes de desligar o controle.');
+        }
+    }
+
     /** @param array<string, mixed> $data */
     private function persistProduct(Product $product, array $data, bool $canEditCost): Product
     {
@@ -111,6 +133,15 @@ class ProductService
             'sale_price' => $data['sale_price'],
             'is_active' => $data['is_active'],
         ]);
+
+        if (array_key_exists('warranty_months', $data)) {
+            $product->warranty_months = $data['warranty_months'] ?: null;
+        }
+
+        if (array_key_exists('tracks_serial', $data) && (bool) $data['tracks_serial'] !== (bool) $product->tracks_serial) {
+            $this->assertCanChangeSerialControl($product, (bool) $data['tracks_serial']);
+            $product->tracks_serial = (bool) $data['tracks_serial'];
+        }
 
         if ($canEditCost) {
             $product->cost_price = $data['cost_price'];

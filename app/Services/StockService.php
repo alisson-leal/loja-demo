@@ -19,6 +19,11 @@ use Illuminate\Support\Facades\DB;
  */
 class StockService
 {
+    public function __construct(private readonly SerialService $serials) {}
+
+    /**
+     * @param  list<string>  $serials  Obrigatório para produtos com controle de série: um número por unidade.
+     */
     public function register(
         ProductVariant $variant,
         MovementType $type,
@@ -29,6 +34,7 @@ class StockService
         ?Model $reference = null,
         bool $allowNegative = false,
         ?int $storeId = null,
+        array $serials = [],
     ): StockMovement {
         if ($quantity <= 0) {
             throw new BusinessRuleException('A quantidade deve ser maior que zero.');
@@ -36,16 +42,28 @@ class StockService
 
         $storeId ??= CurrentStore::id();
 
-        return DB::transaction(function () use ($variant, $type, $quantity, $reason, $actor, $unitCost, $reference, $allowNegative, $storeId) {
-            $locked = ProductVariant::whereKey($variant->id)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($variant, $type, $quantity, $reason, $actor, $unitCost, $reference, $allowNegative, $storeId, $serials) {
+            $locked = ProductVariant::with('product')->whereKey($variant->id)->lockForUpdate()->firstOrFail();
             $row = $this->lockRow($locked, $storeId);
             $delta = $type->isInbound() ? $quantity : -$quantity;
+            $tracked = $locked->product->tracks_serial;
 
+            // Com série, cada unidade é conferida: não há saldo negativo.
             if ($delta < 0 && $row->available() + $delta < 0
-                && ! ($allowNegative && $actor?->can('estoque.negativo'))) {
+                && ($tracked || ! ($allowNegative && $actor?->can('estoque.negativo')))) {
                 throw new BusinessRuleException(
                     "Estoque insuficiente para o SKU {$locked->sku} nesta loja: disponível {$row->available()}, solicitado {$quantity}."
                 );
+            }
+
+            if ($tracked) {
+                $serials = SerialService::parse($serials);
+
+                if (count($serials) !== $quantity) {
+                    throw new BusinessRuleException("Informe {$quantity} número(s) de série para {$locked->fullName()} (informados: ".count($serials).').');
+                }
+
+                $this->serials->move($locked, $type, $serials, $storeId, $reason, $actor, $reference);
             }
 
             return $this->apply($locked, $row, $type, $delta, $reason, $actor, $unitCost, $reference);
@@ -63,7 +81,12 @@ class StockService
         $storeId ??= CurrentStore::id();
 
         return DB::transaction(function () use ($variant, $counted, $reason, $actor, $reference, $storeId) {
-            $locked = ProductVariant::whereKey($variant->id)->lockForUpdate()->firstOrFail();
+            $locked = ProductVariant::with('product')->whereKey($variant->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->product->tracks_serial) {
+                throw new BusinessRuleException("{$locked->fullName()} tem controle de número de série: ajuste pela movimentação de estoque, informando os números.");
+            }
+
             $row = $this->lockRow($locked, $storeId);
             $expected = $row->on_hand;
             $delta = $counted - $expected;

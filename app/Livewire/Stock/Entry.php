@@ -5,6 +5,7 @@ namespace App\Livewire\Stock;
 use App\Exceptions\BusinessRuleException;
 use App\Models\ProductVariant;
 use App\Models\Supplier;
+use App\Services\SerialService;
 use App\Services\StockEntryService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -35,7 +36,9 @@ class Entry extends Component
     {
         foreach ($this->items as $index => $item) {
             if ($item['variant_id'] === $id) {
-                $this->items[$index]['quantity'] = (string) ((int) $item['quantity'] + 1);
+                if (! $item['tracks']) {
+                    $this->items[$index]['quantity'] = (string) ((int) $item['quantity'] + 1);
+                }
 
                 return;
             }
@@ -47,9 +50,21 @@ class Entry extends Component
             'variant_id' => $variant->id,
             'label' => $variant->fullName(),
             'sku' => $variant->sku,
-            'quantity' => '1',
+            'quantity' => $variant->product->tracks_serial ? '0' : '1',
             'unit_cost' => Gate::allows('produtos.ver_custo') ? (string) $variant->cost_price : '',
+            'tracks' => $variant->product->tracks_serial,
+            'serials' => '',
         ];
+    }
+
+    /** Com número de série, a quantidade é a dos números digitados. */
+    public function updatedItems($value, ?string $key = null): void
+    {
+        [$index, $field] = array_pad(explode('.', (string) $key, 2), 2, null);
+
+        if ($field === 'serials' && isset($this->items[$index]) && $this->items[$index]['tracks']) {
+            $this->items[$index]['quantity'] = (string) SerialService::count($value);
+        }
     }
 
     public function removeItem(int $index): void
@@ -62,6 +77,12 @@ class Entry extends Component
     {
         Gate::authorize('estoque.entrada');
 
+        foreach ($this->items as $index => $item) {
+            if ($item['tracks']) {
+                $this->items[$index]['quantity'] = (string) SerialService::count($item['serials']);
+            }
+        }
+
         $this->validate([
             'supplierId' => ['nullable', 'exists:suppliers,id'],
             'documentNumber' => ['nullable', 'string', 'max:60'],
@@ -72,6 +93,7 @@ class Entry extends Component
             'items.*.unit_cost' => [Gate::allows('produtos.ver_custo') ? 'required' : 'nullable', 'numeric', 'min:0', 'max:99999999.99'],
         ], [
             'items.required' => 'Inclua ao menos um item na entrada.',
+            'items.*.quantity.min' => 'Informe a quantidade (com número de série, digite os números).',
         ], [
             'items.*.quantity' => 'quantidade',
             'items.*.unit_cost' => 'custo unitário',
@@ -89,6 +111,7 @@ class Entry extends Component
                     'variant_id' => (int) $item['variant_id'],
                     'quantity' => (int) $item['quantity'],
                     'unit_cost' => $canSeeCost ? $item['unit_cost'] : null,
+                    'serials' => $item['tracks'] ? SerialService::parse($item['serials']) : [],
                 ], $this->items),
             );
         } catch (BusinessRuleException $exception) {

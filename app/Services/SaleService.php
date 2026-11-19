@@ -29,6 +29,7 @@ class SaleService
         private readonly PurchaseThanks $thanks,
         private readonly CrediarioService $crediario,
         private readonly ConsignmentService $consignments,
+        private readonly SerialService $serials,
     ) {}
 
     /**
@@ -37,7 +38,7 @@ class SaleService
      *
      * Os preços vêm sempre do banco, nunca da tela.
      *
-     * @param  list<array{variant_id: int, quantity: int, discount: int}>  $cart  Valores em centavos.
+     * @param  list<array{variant_id: int, quantity: int, discount: int, serials?: list<string>}>  $cart  Valores em centavos.
      * @param  list<array{method_id: int, amount: int, credit_code?: ?string, installments?: int}>  $payments  Valores em centavos.
      */
     public function finalize(
@@ -107,8 +108,10 @@ class SaleService
 
         foreach ($cart as $index => $line) {
             $variant = $variants[$line['variant_id']];
+            $serials = $variant->product->tracks_serial ? SerialService::parse($line['serials'] ?? []) : [];
+            $warranty = $variant->product->warranty_months;
 
-            SaleItem::create([
+            $item = SaleItem::create([
                 'sale_id' => $sale->id,
                 'product_variant_id' => $variant->id,
                 'description' => $variant->fullName(),
@@ -118,9 +121,16 @@ class SaleService
                 'unit_cost' => $variant->cost_price,
                 'discount' => Money::fromCents($calculation['lines'][$index]['discount']),
                 'total' => Money::fromCents($calculation['lines'][$index]['total']),
+                'serials' => $serials ?: null,
+                // A garantia vale a partir da data da venda, com o prazo do cadastro naquele momento.
+                'warranty_until' => $warranty ? today()->addMonthsNoOverflow($warranty) : null,
             ]);
 
-            $this->stock->register($variant, MovementType::Sale, $line['quantity'], $reason, $actor, reference: $sale, storeId: $storeId);
+            $this->stock->register($variant, MovementType::Sale, $line['quantity'], $reason, $actor, reference: $sale, storeId: $storeId, serials: $serials);
+
+            if ($serials) {
+                $this->serials->linkToSaleItem($item, $serials);
+            }
         }
 
         foreach ($settled['rows'] as $row) {
@@ -327,7 +337,7 @@ class SaleService
             }
 
             foreach ($locked->items()->orderBy('product_variant_id')->with('variant')->get() as $item) {
-                $this->stock->register($item->variant, MovementType::SaleCancellation, $item->quantity, $label, $actor, $item->unit_cost, $locked, storeId: $locked->store_id);
+                $this->stock->register($item->variant, MovementType::SaleCancellation, $item->quantity, $label, $actor, $item->unit_cost, $locked, storeId: $locked->store_id, serials: $item->serials ?? []);
             }
 
             $this->receivables->cancelForSale($locked);

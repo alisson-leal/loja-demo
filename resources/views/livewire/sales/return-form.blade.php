@@ -14,11 +14,30 @@
                         <tbody>
                             @foreach ($sale->items as $item)
                                 <tr wire:key="item-{{ $item->id }}">
-                                    <td>{{ $item->description }}<div class="small text-body-secondary">{{ $item->sku }}</div></td>
+                                    <td>
+                                        {{ $item->description }}<div class="small text-body-secondary">{{ $item->sku }}</div>
+                                        @if ($item->warranty_until)
+                                            <div class="small {{ $item->underWarranty() ? 'text-success' : 'text-body-secondary' }}">Garantia até {{ $item->warranty_until->format('d/m/Y') }}{{ $item->underWarranty() ? '' : ' (vencida)' }}</div>
+                                        @endif
+                                    </td>
                                     <td class="text-nowrap">{{ Money::format($item->total) }}</td>
                                     <td>{{ $item->returnableQuantity() }}</td>
                                     <td>
-                                        <input type="number" min="0" max="{{ $item->returnableQuantity() }}" step="1" aria-label="Quantidade a devolver de {{ $item->description }}" wire:model="quantities.{{ $item->id }}" class="form-control form-control-sm grid-small @error('quantities.'.$item->id) is-invalid @enderror">
+                                        @if ($item->serials)
+                                            <fieldset>
+                                                <legend class="visually-hidden">Números de série devolvidos de {{ $item->description }}</legend>
+                                                @forelse ($outstanding[$item->id] ?? [] as $serial)
+                                                    <div class="form-check" wire:key="serial-{{ $item->id }}-{{ $serial }}">
+                                                        <input class="form-check-input" type="checkbox" id="rs-{{ $item->id }}-{{ $loop->index }}" value="{{ $serial }}" wire:model.live="returnSerials.{{ $item->id }}">
+                                                        <label class="form-check-label small text-break" for="rs-{{ $item->id }}-{{ $loop->index }}">{{ $serial }}</label>
+                                                    </div>
+                                                @empty
+                                                    <span class="small text-body-secondary">Tudo devolvido</span>
+                                                @endforelse
+                                            </fieldset>
+                                        @else
+                                            <input type="number" min="0" max="{{ $item->returnableQuantity() }}" step="1" aria-label="Quantidade a devolver de {{ $item->description }}" wire:model="quantities.{{ $item->id }}" class="form-control form-control-sm grid-small @error('quantities.'.$item->id) is-invalid @enderror">
+                                        @endif
                                     </td>
                                     <td><input type="checkbox" class="form-check-input" aria-label="{{ $item->description }} volta ao estoque" wire:model="restock.{{ $item->id }}"></td>
                                 </tr>

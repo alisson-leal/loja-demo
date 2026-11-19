@@ -166,6 +166,7 @@ return [
                 'ver' => 'Consultar vendas de todos',
                 'cancelar' => 'Cancelar vendas',
                 'devolver' => 'Registrar devoluções e trocas',
+                'garantia' => 'Consultar garantias e números de série',
             ],
         ],
         'clientes' => [
@@ -270,7 +271,7 @@ return [
             'fornecedores.ver', 'fornecedores.criar', 'fornecedores.editar',
             'estoque.ver', 'estoque.entrada', 'estoque.movimentar', 'estoque.ajustar', 'estoque.inventario',
             'pdv.vender', 'pdv.desconto', 'pdv.desconto_livre', 'caixa.operar', 'caixa.gerir',
-            'vendas.ver', 'vendas.cancelar', 'vendas.devolver',
+            'vendas.ver', 'vendas.cancelar', 'vendas.devolver', 'vendas.garantia',
             'clientes.ver', 'clientes.criar', 'clientes.editar', 'clientes.exportar',
             'marketing.ver', 'marketing.campanhas', 'marketing.disparar', 'marketing.whatsapp', 'marketing.automacoes',
             'financeiro.ver', 'financeiro.pagar', 'financeiro.receber',
@@ -281,11 +282,12 @@ return [
         ],
         'Vendedor' => [
             'produtos.ver', 'estoque.ver', 'pdv.vender', 'pdv.desconto', 'caixa.operar', 'clientes.criar', 'marketing.whatsapp', 'comissoes.ver_propria',
-            'crediario.vender', 'crediario.receber', 'condicional.criar', 'condicional.acertar',
+            'crediario.vender', 'crediario.receber', 'condicional.criar', 'condicional.acertar', 'vendas.garantia',
         ],
         'Estoquista' => [
             'produtos.ver', 'produtos.ver_custo', 'cadastros.ver', 'fornecedores.ver',
             'estoque.ver', 'estoque.entrada', 'estoque.movimentar', 'estoque.ajustar', 'estoque.inventario', 'estoque.transferir',
+            'vendas.garantia',
         ],
     ],
 

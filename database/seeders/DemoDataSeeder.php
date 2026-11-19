@@ -163,6 +163,14 @@ class DemoDataSeeder extends Seeder
     /** @var array<string, list<int>> condicionais que a cliente volta para acertar, por dia */
     private array $consignmentVisits = [];
 
+    /** Produto com número de série e garantia (fora do sorteio das vendas comuns). */
+    private ?int $serialVariantId = null;
+
+    private ?int $serialSupplierId = null;
+
+    /** @var list<string> números de série no estoque da loja principal */
+    private array $serialUnits = [];
+
     private int $customerSeq = 0;
 
     private int $barcodeSeq = 0;
@@ -466,6 +474,61 @@ class DemoDataSeeder extends Seeder
                 ];
             }
         }
+
+        $this->serialProduct($categories['Acessórios']->id);
+    }
+
+    /** Relógio com número de série e garantia: mostra o controle por unidade e a consulta de garantia. */
+    private function serialProduct(int $categoryId): void
+    {
+        $catalog = app(CatalogService::class);
+        $brand = Brand::firstOrCreate(['name' => 'Tic-Tac Kids'], ['is_active' => true]);
+        $this->serialSupplierId = $catalog->saveSupplier(null, [
+            'name' => 'Tic-Tac Eletrônicos Infantis Ltda', 'contact_name' => $this->pick(self::FIRST_NAMES).' '.$this->pick(self::LAST_NAMES),
+            'phone' => $this->phone(), 'whatsapp' => $this->phone(), 'email' => 'comercial@tictackids.example.com',
+            'city' => 'São Paulo', 'state' => 'SP', 'is_active' => true,
+        ])->id;
+
+        $product = app(ProductService::class)->save($this->users['admin'], null, [
+            'name' => 'Relógio Smartwatch Infantil',
+            'description' => 'Relógio digital infantil com número de série e 3 meses de garantia. Produto fictício da loja de demonstração.',
+            'category_id' => $categoryId,
+            'brand_id' => $brand->id,
+            'supplier_id' => $this->serialSupplierId,
+            'sale_price' => '189.90',
+            'cost_price' => '92.00',
+            'is_active' => true,
+            'internal_code' => null,
+            'sku' => null,
+            'tracks_serial' => true,
+            'warranty_months' => 3,
+        ], [[
+            'id' => null, 'value_ids' => [], 'sku' => null, 'barcode' => $this->ean(++$this->barcodeSeq),
+            'sale_price' => '189.90', 'cost_price' => '92.00', 'min_stock' => 2, 'is_active' => true,
+        ]]);
+
+        $this->serialVariantId = $product->variants()->value('id');
+    }
+
+    /** Vende uma unidade do relógio, com o número de série, na loja principal. */
+    private function sellSerialUnit(array $sellers): void
+    {
+        $seller = collect($sellers)->first(fn (User $user) => $this->home($user) === $this->mainId);
+
+        if (! $seller || $this->serialUnits === []) {
+            return;
+        }
+
+        $serial = array_shift($this->serialUnits);
+        $price = Money::toCents('189.90');
+
+        try {
+            app(SaleService::class)->finalize($seller, [['variant_id' => $this->serialVariantId, 'quantity' => 1, 'discount' => 0, 'serials' => [$serial]]],
+                $this->payments($price), $this->pick($this->customerPool), 0, null, (string) Str::uuid());
+            $this->addStock($this->mainId, $this->serialVariantId, -1);
+        } catch (BusinessRuleException) {
+            array_unshift($this->serialUnits, $serial);
+        }
     }
 
     private function initialStock(CarbonImmutable $start): void
@@ -476,6 +539,13 @@ class DemoDataSeeder extends Seeder
         }
 
         $this->registerPurchases($items, $start, 'Estoque inicial');
+
+        if ($this->serialVariantId) {
+            $this->serialUnits = array_map(fn (int $n) => sprintf('TTK%s%04d', $start->format('ym'), $n), range(1, 8));
+            $this->registerPurchases([$this->serialSupplierId => [[
+                'variant_id' => $this->serialVariantId, 'quantity' => count($this->serialUnits), 'unit_cost' => '92.00', 'serials' => $this->serialUnits,
+            ]]], $start, 'Estoque inicial');
+        }
     }
 
     /** Entradas por fornecedor, cada uma com a conta a pagar parcelada da nota. */
@@ -719,6 +789,12 @@ class DemoDataSeeder extends Seeder
         foreach ($minutes as $minute) {
             $this->at($day->setTime(intdiv($minute, 60), $minute % 60, mt_rand(0, 59)));
             $this->sell($this->pick($sellers));
+        }
+
+        // Sobram sempre algumas unidades em estoque para a demonstração.
+        if (count($this->serialUnits) > 3 && $this->chance(5)) {
+            $this->at($day->setTime(mt_rand(10, 18), mt_rand(0, 59)));
+            $this->sellSerialUnit($sellers);
         }
 
         if (in_array($day->dayOfWeekIso, [2, 4, 6], true) && $this->chance(45)) {

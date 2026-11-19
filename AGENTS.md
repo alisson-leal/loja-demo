@@ -22,7 +22,10 @@ Como a VPS é compartilhada, evitar processos pesados; a restauração diária r
 - Erros de regra usam `App\Exceptions\BusinessRuleException` (mensagem exibida ao usuário) via trait `HandlesBusinessRules::attempt()`.
 - **Dinheiro em centavos (inteiros)**: `App\Support\Money::toCents/fromCents`. Totais da venda só via `App\Support\SaleCalculator`.
 - **Estoque físico só muda por `StockService`**, dentro de transação com `lockForUpdate`, travando variantes em ordem crescente de id.
-- Registros históricos (`ActivityLog`, `StockMovement`, `VariantCostHistory`, `CashMovement`) usam a trait `Immutable`: corrigir com novo lançamento, nunca editar.
+- **Número de série**: produto com `tracks_serial` exige um número por unidade em toda movimentação (`StockService::register(..., serials:)`),
+  e o `SerialService` muda o status da unidade na mesma transação. Saldo da loja = unidades "em estoque" da loja. Sem saldo negativo e fora do inventário por quantidade.
+  A garantia (`warranty_months` do produto) é copiada para `sale_items.warranty_until` na venda.
+- Registros históricos (`ActivityLog`, `StockMovement`, `VariantCostHistory`, `CashMovement`, `SerialNumberEvent`) usam a trait `Immutable`: corrigir com novo lançamento, nunca editar.
 - Ações relevantes são auditadas com `AuditLogger`.
 - **Permissões**: catálogo em `config/loja.php` (`modules`, formato `modulo.operacao`), aplicadas com spatie/laravel-permission
   nas rotas (`can:`) e nos serviços. Permissão nova exige migração "grant" para os perfis existentes. Administrador tem acesso total via `Gate::before`.

@@ -51,6 +51,7 @@ use App\Livewire\Sales\Index as SaleIndex;
 use App\Livewire\Sales\Pos;
 use App\Livewire\Sales\ReturnForm as SaleReturnForm;
 use App\Livewire\Sales\Show as SaleShow;
+use App\Livewire\Sales\Warranty as SaleWarranty;
 use App\Livewire\Sessions\Index as SessionIndex;
 use App\Livewire\Stock\Balance as StockBalance;
 use App\Livewire\Stock\Entry as StockEntryForm;
@@ -126,6 +127,7 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/vendas/{sale}', SaleShow::class)->whereNumber('sale')->name('sales.show');
     Route::get('/vendas/{sale}/comprovante', [SaleReceiptController::class, 'show'])->whereNumber('sale')->name('sales.receipt');
     Route::livewire('/vendas/{sale}/devolucao', SaleReturnForm::class)->whereNumber('sale')->name('sales.return');
+    Route::livewire('/garantias', SaleWarranty::class)->middleware('can:vendas.garantia')->name('warranty.index');
 
     Route::livewire('/condicionais', ConsignmentIndex::class)->name('consignments.index');
     Route::livewire('/condicionais/nova', ConsignmentForm::class)->middleware('can:condicional.criar')->name('consignments.create');

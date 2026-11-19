@@ -20,7 +20,7 @@ class StockEntryService
     ) {}
 
     /**
-     * @param  list<array{variant_id: int, quantity: int, unit_cost: float|string|null}>  $items
+     * @param  list<array{variant_id: int, quantity: int, unit_cost: float|string|null, serials?: list<string>}>  $items
      */
     public function register(User $actor, ?int $supplierId, ?string $documentNumber, ?string $notes, array $items, ?int $storeId = null): StockEntry
     {
@@ -47,7 +47,7 @@ class StockEntryService
             foreach ($items as $item) {
                 $variant = ProductVariant::findOrFail($item['variant_id']);
 
-                $this->stock->register($variant, MovementType::Entry, $item['quantity'], $reason, $actor, $item['unit_cost'], $entry, storeId: $storeId);
+                $this->stock->register($variant, MovementType::Entry, $item['quantity'], $reason, $actor, $item['unit_cost'], $entry, storeId: $storeId, serials: $item['serials'] ?? []);
 
                 if ($item['unit_cost'] !== null) {
                     $this->costs->change($variant->fresh(), $item['unit_cost'], VariantCostHistory::SOURCE_ENTRY, $actor, $supplierId);

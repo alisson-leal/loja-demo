@@ -23,13 +23,14 @@ class SaleReturnService
         private readonly CashService $cash,
         private readonly AuditLogger $audit,
         private readonly PayableService $payables,
+        private readonly SerialService $serialService,
     ) {}
 
     /**
      * Devolução parcial ou total. Sem forma de pagamento, gera vale-troca, que o
      * cliente usa em uma nova venda; é assim que as trocas são registradas.
      *
-     * @param  list<array{sale_item_id: int, quantity: int, restock: bool}>  $items
+     * @param  list<array{sale_item_id: int, quantity: int, restock: bool, serials?: list<string>}>  $items
      */
     public function register(User $actor, Sale $sale, array $items, string $reason, ?int $refundMethodId, ?User $authorizedBy = null): SaleReturn
     {
@@ -73,7 +74,7 @@ class SaleReturnService
         });
     }
 
-    /** @param array{sale_item_id: int, quantity: int, restock: bool} $item */
+    /** @param array{sale_item_id: int, quantity: int, restock: bool, serials?: list<string>} $item */
     private function returnItem(Sale $sale, SaleReturn $return, array $item, string $label, User $actor): int
     {
         $saleItem = SaleItem::where('sale_id', $sale->id)->whereKey($item['sale_item_id'])->lockForUpdate()->with('variant')->firstOrFail();
@@ -88,6 +89,18 @@ class SaleReturnService
         $after = (int) round($paid * ($saleItem->returned_quantity + $item['quantity']) / $saleItem->quantity);
         $amount = $after - $before;
 
+        // Com número de série, o cliente devolve unidades específicas.
+        $serials = [];
+
+        if ($saleItem->serials) {
+            $serials = SerialService::parse($item['serials'] ?? []);
+            $outstanding = $this->serialService->stillSold($saleItem);
+
+            if (count($serials) !== $item['quantity'] || array_diff($serials, $outstanding) !== []) {
+                throw new BusinessRuleException("Marque os números de série devolvidos de {$saleItem->description}.");
+            }
+        }
+
         $saleItem->update(['returned_quantity' => $saleItem->returned_quantity + $item['quantity']]);
 
         $return->items()->create([
@@ -98,7 +111,9 @@ class SaleReturnService
         ]);
 
         if ($item['restock']) {
-            $this->stock->register($saleItem->variant, MovementType::Return, $item['quantity'], $label, $actor, $saleItem->unit_cost, $return, storeId: $sale->store_id);
+            $this->stock->register($saleItem->variant, MovementType::Return, $item['quantity'], $label, $actor, $saleItem->unit_cost, $return, storeId: $sale->store_id, serials: $serials);
+        } elseif ($serials) {
+            $this->serialService->retireReturned($saleItem, $serials, $return, $label, $actor);
         }
 
         return $amount;

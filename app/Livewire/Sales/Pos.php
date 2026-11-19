@@ -12,6 +12,7 @@ use App\Services\CashService;
 use App\Services\CrediarioService;
 use App\Services\CustomerService;
 use App\Services\SaleService;
+use App\Services\SerialService;
 use App\Support\Money;
 use App\Support\SaleCalculator;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +29,7 @@ class Pos extends Component
 {
     // O carrinho fica na sessão: recarregar a página não perde a venda em andamento.
 
-    /** @var list<array{variant_id: int, quantity: string, discount: string}> */
+    /** @var list<array{variant_id: int, quantity: string, discount: string, serials?: string}> */
     #[Session]
     public array $cart = [];
 
@@ -93,24 +94,65 @@ class Pos extends Component
     #[On('variant-picked')]
     public function addVariant(int $id): void
     {
+        $tracked = $this->tracks($id);
+
         foreach ($this->cart as $index => $line) {
             if ($line['variant_id'] === $id) {
-                $this->cart[$index]['quantity'] = (string) ((int) $line['quantity'] + 1);
+                if (! $tracked) {
+                    $this->cart[$index]['quantity'] = (string) ((int) $line['quantity'] + 1);
+                }
+
                 $this->dispatch('focus-picker');
 
                 return;
             }
         }
 
-        $this->cart[] = ['variant_id' => $id, 'quantity' => '1', 'discount' => ''];
+        $this->cart[] = ['variant_id' => $id, 'quantity' => $tracked ? '0' : '1', 'discount' => '', 'serials' => ''];
         $this->dispatch('focus-picker');
+    }
+
+    /** Leitor de código de barras no número de série: inclui a unidade exata. */
+    #[On('serial-picked')]
+    public function addSerial(int $id, string $serial): void
+    {
+        $index = collect($this->cart)->search(fn (array $line) => $line['variant_id'] === $id);
+
+        if ($index === false) {
+            $this->cart[] = ['variant_id' => $id, 'quantity' => '0', 'discount' => '', 'serials' => ''];
+            $index = array_key_last($this->cart);
+        }
+
+        $current = preg_split('/[\s,;]+/', trim($this->cart[$index]['serials'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
+
+        if (! in_array($serial, $current, true)) {
+            $current[] = $serial;
+        }
+
+        $this->cart[$index]['serials'] = implode("\n", $current);
+        $this->cart[$index]['quantity'] = (string) count($current);
+        $this->dispatch('focus-picker');
+    }
+
+    public function updatedCart($value, ?string $key = null): void
+    {
+        [$index, $field] = array_pad(explode('.', (string) $key, 2), 2, null);
+
+        if ($field === 'serials' && isset($this->cart[$index])) {
+            $this->cart[$index]['quantity'] = (string) SerialService::count($value);
+        }
     }
 
     public function changeQuantity(int $index, int $delta): void
     {
-        if (isset($this->cart[$index])) {
+        if (isset($this->cart[$index]) && ! $this->tracks($this->cart[$index]['variant_id'])) {
             $this->cart[$index]['quantity'] = (string) max(1, (int) $this->cart[$index]['quantity'] + $delta);
         }
+    }
+
+    private function tracks(int $variantId): bool
+    {
+        return (bool) ProductVariant::with('product')->find($variantId)?->product->tracks_serial;
     }
 
     public function removeLine(int $index): void
@@ -247,13 +289,25 @@ class Pos extends Component
         $computation = $this->computation();
 
         try {
+            $cart = array_map(function (array $line) use ($computation) {
+                $variant = $computation['variants'][$line['variant_id']] ?? null;
+                $serials = $variant?->product->tracks_serial ? SerialService::parse($line['serials'] ?? '') : [];
+
+                if ($variant?->product->tracks_serial && $serials === []) {
+                    throw new BusinessRuleException("Informe o número de série de {$variant->fullName()}.");
+                }
+
+                return [
+                    'variant_id' => $line['variant_id'],
+                    'quantity' => $serials ? count($serials) : max(1, (int) $line['quantity']),
+                    'discount' => max(0, Money::toCents($line['discount'])),
+                    'serials' => $serials,
+                ];
+            }, $this->cart);
+
             $sale = $sales->finalize(
                 Auth::user(),
-                array_map(fn (array $line) => [
-                    'variant_id' => $line['variant_id'],
-                    'quantity' => max(1, (int) $line['quantity']),
-                    'discount' => max(0, Money::toCents($line['discount'])),
-                ], $this->cart),
+                $cart,
                 array_map(fn (array $payment) => [
                     'method_id' => $payment['method_id'],
                     'amount' => Money::toCents($payment['amount']),

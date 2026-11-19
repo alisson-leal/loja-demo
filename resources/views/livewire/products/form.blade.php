@@ -75,6 +75,19 @@
                             <label class="form-check-label" for="isActive">Produto ativo</label>
                         </div>
                     </div>
+                    <div class="col-6 col-md-3">
+                        <label for="warrantyMonths" class="form-label">Garantia (meses)</label>
+                        <input id="warrantyMonths" type="number" step="1" min="0" max="120" placeholder="Sem garantia" wire:model="warrantyMonths" class="form-control @error('warrantyMonths') is-invalid @enderror" aria-describedby="warrantyHelp">
+                        @error('warrantyMonths') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div id="warrantyHelp" class="form-text">Sai no comprovante, contada da data da venda.</div>
+                    </div>
+                    <div class="col-12 col-md-9 form-check-aligned">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="tracksSerial" wire:model.live="tracksSerial" aria-describedby="serialHelp">
+                            <label class="form-check-label" for="tracksSerial">Controlar número de série</label>
+                        </div>
+                        <div id="serialHelp" class="form-text">Cada unidade tem o seu número, informado na entrada e na venda. Para eletrônicos, celulares e ferramentas.</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -145,7 +158,7 @@
                 <div class="d-flex flex-wrap gap-2 mb-3">
                     <button type="button" class="btn btn-outline-primary" wire:click="generate" wire:loading.attr="disabled">Gerar combinações</button>
                     <button type="button" class="btn btn-light" wire:click="applyBasePrices">Aplicar preço base a todas</button>
-                    @if ($canEnterStock && $hasNewRows)
+                    @if ($canEnterStock && $hasNewRows && ! $tracksSerial)
                         <div class="input-group w-auto">
                             <label for="initialForAll" class="visually-hidden">Estoque inicial para todas as variações novas</label>
                             <input id="initialForAll" type="number" min="0" step="1" class="form-control grid-medium" placeholder="Qtd." wire:model="initialForAll">
@@ -167,7 +180,7 @@
                                 <th scope="col">Preço</th>
                                 @if ($canSeeCost) <th scope="col">Margem</th> @endif
                                 <th scope="col">Mínimo</th>
-                                <th scope="col">{{ $canEnterStock && $hasNewRows ? 'Saldo / estoque inicial' : 'Saldo' }}</th>
+                                <th scope="col">{{ $canEnterStock && $hasNewRows && ! $tracksSerial ? 'Saldo / estoque inicial' : 'Saldo' }}</th>
                                 <th scope="col">Ativa</th>
                                 <th scope="col"><span class="visually-hidden">Remover</span></th>
                             </tr>
@@ -202,7 +215,7 @@
                                         @error('rows.'.$i.'.min_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </td>
                                     <td>
-                                        @if (! $row['id'] && $canEnterStock)
+                                        @if (! $row['id'] && $canEnterStock && ! $tracksSerial)
                                             <input type="number" step="1" min="0" placeholder="0" aria-label="Estoque inicial de {{ $row['label'] }}" wire:model="rows.{{ $i }}.initial_stock" class="form-control form-control-sm grid-small @error('rows.'.$i.'.initial_stock') is-invalid @enderror">
                                             @error('rows.'.$i.'.initial_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                         @else

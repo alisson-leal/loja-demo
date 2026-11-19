@@ -6,7 +6,7 @@
             <div class="card">
                 <div class="card-body">
                     <h2 class="h6">Peças que saem de {{ $from->name }}</h2>
-                    <livewire:stock.variant-picker />
+                    <livewire:stock.variant-picker :serials="true" />
                 </div>
                 <div class="table-responsive">
                     <table class="table align-middle">
@@ -18,10 +18,20 @@
                                 @if ($variant)
                                     @php $here = $variant->availableIn($from->id); @endphp
                                     <tr wire:key="item-{{ $id }}">
-                                        <td>{{ $variant->fullName() }}<div class="small text-body-secondary">{{ $variant->sku }}</div></td>
                                         <td>
-                                            <label for="qty-{{ $id }}" class="visually-hidden">Quantidade de {{ $variant->fullName() }}</label>
-                                            <input id="qty-{{ $id }}" type="number" min="1" class="form-control form-control-sm grid-small" wire:model.live.debounce.400ms="items.{{ $id }}">
+                                            {{ $variant->fullName() }}<div class="small text-body-secondary">{{ $variant->sku }}</div>
+                                            @if ($variant->product->tracks_serial)
+                                                <label for="serials-{{ $id }}" class="form-label small mt-1 mb-0">Números de série (um por linha)</label>
+                                                <textarea id="serials-{{ $id }}" rows="2" class="form-control form-control-sm serial-input" wire:model.live.debounce.500ms="serials.{{ $id }}" autocomplete="off" spellcheck="false"></textarea>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($variant->product->tracks_serial)
+                                                <span class="fw-bold">{{ $quantity }}</span>
+                                            @else
+                                                <label for="qty-{{ $id }}" class="visually-hidden">Quantidade de {{ $variant->fullName() }}</label>
+                                                <input id="qty-{{ $id }}" type="number" min="1" class="form-control form-control-sm grid-small" wire:model.live.debounce.400ms="items.{{ $id }}">
+                                            @endif
                                         </td>
                                         <td @class(['text-danger' => (int) $quantity > $here])>{{ $here }}</td>
                                         <td class="text-end"><button type="button" class="btn btn-sm btn-light text-danger" wire:click="remove({{ $id }})" aria-label="Remover {{ $variant->fullName() }}"><i class="bi bi-trash" aria-hidden="true"></i></button></td>

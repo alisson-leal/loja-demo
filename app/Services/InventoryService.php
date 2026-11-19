@@ -25,7 +25,9 @@ class InventoryService
                 throw new BusinessRuleException('Já existe um inventário em contagem nesta loja. Conclua ou cancele antes de abrir outro.');
             }
 
+            // Produtos com número de série são conferidos unidade a unidade, fora do inventário por quantidade.
             $variantIds = ProductVariant::operational()
+                ->whereHas('product', fn ($query) => $query->where('tracks_serial', false))
                 ->when($categoryId, fn ($query) => $query->inCategory($categoryId))
                 ->pluck('id');
 
