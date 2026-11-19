@@ -65,10 +65,10 @@
                             <td>{{ $variant->product->name }}</td>
                             <td>{{ $variant->label() }}</td>
                             <td class="text-nowrap">{{ $variant->sku }}</td>
-                            <td>{{ $onHand }}</td>
-                            <td>{{ $reserved }}</td>
-                            <td class="fw-bold">{{ $free }}</td>
-                            <td>{{ $variant->min_stock }}</td>
+                            <td class="text-nowrap">{{ $variant->formatQuantity($onHand) }}</td>
+                            <td class="text-nowrap">{{ $variant->formatQuantity($reserved) }}</td>
+                            <td class="fw-bold text-nowrap">{{ $variant->formatQuantity($free) }}</td>
+                            <td class="text-nowrap">{{ $variant->formatQuantity($variant->min_stock) }}</td>
                             <td>
                                 @if ($free <= 0)
                                     <span class="badge text-bg-danger">Sem estoque</span>

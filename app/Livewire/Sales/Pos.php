@@ -14,6 +14,7 @@ use App\Services\CustomerService;
 use App\Services\SaleService;
 use App\Services\SerialService;
 use App\Support\Money;
+use App\Support\Quantity;
 use App\Support\SaleCalculator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -94,7 +95,19 @@ class Pos extends Component
     #[On('variant-picked')]
     public function addVariant(int $id): void
     {
-        $tracked = $this->tracks($id);
+        $product = ProductVariant::with('product')->find($id)?->product;
+        $tracked = (bool) $product?->tracks_serial;
+
+        // Por metro ou quilo, ler o código de novo não soma: a quantidade é digitada.
+        if ($product?->isFractional()) {
+            if (! collect($this->cart)->contains('variant_id', $id)) {
+                $this->cart[] = ['variant_id' => $id, 'quantity' => '', 'discount' => '', 'serials' => ''];
+            }
+
+            $this->dispatch('focus-quantity', id: $id);
+
+            return;
+        }
 
         foreach ($this->cart as $index => $line) {
             if ($line['variant_id'] === $id) {
@@ -145,14 +158,21 @@ class Pos extends Component
 
     public function changeQuantity(int $index, int $delta): void
     {
-        if (isset($this->cart[$index]) && ! $this->tracks($this->cart[$index]['variant_id'])) {
+        $product = isset($this->cart[$index]) ? ProductVariant::with('product')->find($this->cart[$index]['variant_id'])?->product : null;
+
+        if ($product && ! $product->tracks_serial && ! $product->isFractional()) {
             $this->cart[$index]['quantity'] = (string) max(1, (int) $this->cart[$index]['quantity'] + $delta);
         }
     }
 
-    private function tracks(int $variantId): bool
+    /** Quantidade da linha na escala guardada (milésimos por metro ou quilo). */
+    private function lineQuantity(array $line, ?ProductVariant $variant): int
     {
-        return (bool) ProductVariant::with('product')->find($variantId)?->product->tracks_serial;
+        if ($variant?->product->isFractional()) {
+            return Quantity::parse($line['quantity'], $variant->product->unit);
+        }
+
+        return max(1, (int) $line['quantity']);
     }
 
     public function removeLine(int $index): void
@@ -260,8 +280,9 @@ class Pos extends Component
 
         $input = array_map(fn (array $line) => [
             'unit_price' => Money::toCents($variants[$line['variant_id']]->sale_price ?? 0),
-            'quantity' => max(1, (int) $line['quantity']),
+            'quantity' => $this->lineQuantity($line, $variants[$line['variant_id']] ?? null),
             'discount' => max(0, Money::toCents($line['discount'])),
+            'unit' => $variants[$line['variant_id']]->product->unit ?? Quantity::UNIT,
         ], $this->cart);
 
         $calculation = SaleCalculator::calculate($input, 0);
@@ -274,6 +295,7 @@ class Pos extends Component
         $cash = array_sum(array_map(fn (array $payment) => $payment['is_cash'] ? max(0, Money::toCents($payment['amount'])) : 0, $this->payments));
 
         return $calculation + [
+            'quantities' => array_column($input, 'quantity'),
             'variants' => $variants,
             'order_discount' => $orderDiscount,
             'paid' => $paid,
@@ -297,9 +319,13 @@ class Pos extends Component
                     throw new BusinessRuleException("Informe o número de série de {$variant->fullName()}.");
                 }
 
+                if ($variant?->product->isFractional() && $this->lineQuantity($line, $variant) === 0) {
+                    throw new BusinessRuleException('Informe '.($variant->product->unit === Quantity::METER ? 'os metros' : 'o peso')." de {$variant->fullName()}.");
+                }
+
                 return [
                     'variant_id' => $line['variant_id'],
-                    'quantity' => $serials ? count($serials) : max(1, (int) $line['quantity']),
+                    'quantity' => $serials ? count($serials) : $this->lineQuantity($line, $variant),
                     'discount' => max(0, Money::toCents($line['discount'])),
                     'serials' => $serials,
                 ];

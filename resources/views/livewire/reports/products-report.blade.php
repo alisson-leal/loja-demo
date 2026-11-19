@@ -19,7 +19,7 @@
                 <caption class="visually-hidden">Produtos mais vendidos</caption>
                 <thead>
                     <tr>
-                        <th scope="col">Produto</th><th scope="col" class="text-end">Peças</th><th scope="col" class="text-end">Receita</th>
+                        <th scope="col">Produto</th><th scope="col" class="text-end">Quantidade</th><th scope="col" class="text-end">Receita</th>
                         @if ($showCost)<th scope="col" class="text-end">Lucro bruto</th><th scope="col" class="text-end">Margem</th>@endif
                     </tr>
                 </thead>
@@ -27,7 +27,7 @@
                     @forelse ($top as $row)
                         <tr>
                             <td>{{ $row->name }}</td>
-                            <td class="text-end">{{ $row->quantity }}</td>
+                            <td class="text-end text-nowrap">{{ \App\Support\Quantity::format($row->amount, $row->unit) }}</td>
                             <td class="text-end text-nowrap">{{ Money::format($row->revenue / 100) }}</td>
                             @if ($showCost)
                                 <td class="text-end text-nowrap">{{ Money::format($row->profit / 100) }}</td>
@@ -72,7 +72,7 @@
                         <tr wire:key="stalled-{{ $row->id }}">
                             <td><a href="{{ route('stock.variant', $row->id) }}">{{ $row->product }}</a></td>
                             <td class="text-nowrap">{{ $row->sku }}</td>
-                            <td class="text-end">{{ $row->quantity }}</td>
+                            <td class="text-end text-nowrap">{{ \App\Support\Quantity::format($row->quantity, $row->unit) }}</td>
                             @if ($showCost)<td class="text-end text-nowrap">{{ Money::format($row->cost_value) }}</td>@endif
                             <td class="text-nowrap">{{ $row->last_sale ? \Illuminate\Support\Carbon::parse($row->last_sale)->format('d/m/Y') : 'Nunca vendida' }}</td>
                         </tr>

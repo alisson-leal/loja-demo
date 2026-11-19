@@ -32,7 +32,8 @@
                         <tr wire:key="transfer-{{ $transfer->id }}">
                             <td>#{{ $transfer->number() }}</td>
                             <td>{{ $transfer->from->name }} <i class="bi bi-arrow-right" aria-hidden="true"></i> {{ $transfer->to->name }}</td>
-                            <td>{{ (int) $transfer->pieces }}</td>
+                            {{-- Por metro ou quilo, cada item conta como uma peça. --}}
+                            <td>{{ $transfer->items->sum(fn ($item) => $item->variant->product->isFractional() ? 1 : $item->quantity) }}</td>
                             <td class="text-nowrap">{{ $transfer->created_at->format('d/m/Y H:i') }}<div class="small text-body-secondary">{{ $transfer->user->name }}</div></td>
                             <td>
                                 <span class="badge text-bg-{{ $transfer->statusTone() }}">{{ $transfer->statusLabel() }}</span>
@@ -59,7 +60,7 @@
                                 <td colspan="6">
                                     <ul class="mb-0 small">
                                         @foreach ($transfer->items as $item)
-                                            <li>{{ $item->quantity }}x {{ $item->variant->fullName() }} <span class="text-body-secondary">({{ $item->variant->sku }})</span></li>
+                                            <li>{{ $item->variant->product->isFractional() ? $item->variant->formatQuantity($item->quantity) : $item->quantity.'x' }} {{ $item->variant->fullName() }} <span class="text-body-secondary">({{ $item->variant->sku }})</span></li>
                                         @endforeach
                                     </ul>
                                     @if ($transfer->notes)<div class="small text-body-secondary mt-1">{{ $transfer->notes }}</div>@endif

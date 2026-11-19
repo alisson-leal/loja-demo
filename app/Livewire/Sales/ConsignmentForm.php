@@ -44,6 +44,14 @@ class ConsignmentForm extends Component
     #[On('variant-picked')]
     public function addVariant(int $id): void
     {
+        $variant = ProductVariant::with(['product', 'values.attribute'])->find($id);
+
+        if ($variant?->product->isFractional()) {
+            session()->now('error', "{$variant->fullName()} é vendido por {$variant->product->unitLabel()} e não entra na condicional.");
+
+            return;
+        }
+
         $this->items[$id] = ($this->items[$id] ?? 0) + 1;
     }
 

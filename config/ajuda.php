@@ -69,6 +69,7 @@ return [
                 'Desconto acima do seu limite pede a autorização de um gerente, que digita e-mail e senha na sua tela.',
                 'Para acertar uma condicional, abra a condicional e use **Cobrar no caixa**: as peças já chegam ao carrinho.',
                 'Produto com **número de série**: leia o número da etiqueta da unidade no campo de busca (ele já entra no carrinho) ou digite-o no campo **Número de série** do item. A quantidade é a dos números informados.',
+                'Produto vendido **por metro ou por quilo**: ao incluir, o cursor vai para a quantidade. Digite os metros ou o peso com vírgula (ex.: **1,5** ou **0,350**) e tecle Enter para voltar à busca. O valor é o preço por metro ou quilo vezes a quantidade, arredondado ao centavo.',
             ],
         ],
 
@@ -142,7 +143,10 @@ return [
                 ['text' => 'Na volta do cliente, clique em **Fazer o acerto** e informe o que voltou. O que voltou fica disponível de novo no estoque.', 'can' => ['condicional.acertar']],
                 ['text' => 'Se o cliente ficou com peças, use **Cobrar no caixa**: as peças vão para a frente de caixa para receber o pagamento. Se não ficou com nada, use **Encerrar sem venda**.', 'can' => ['condicional.acertar']],
             ],
-            'tips' => ['Condicionais com prazo vencido aparecem com um número vermelho no menu.'],
+            'tips' => [
+                'Condicionais com prazo vencido aparecem com um número vermelho no menu.',
+                'Produtos vendidos por metro ou quilo não entram na condicional: um corte de tecido não volta para a prateleira como saiu.',
+            ],
         ],
 
         'crediario' => [
@@ -371,6 +375,7 @@ return [
                 'Cada combinação (por exemplo, M / Azul ou 220 V / Preto) é um SKU com código de barras próprio.',
                 'Produto sem variação (um cabo, um kit de agulhas) é cadastrado sem marcar nenhuma variação.',
                 'Em **Garantia (meses)**, informe o prazo de garantia da loja: ele sai no comprovante. Marque **Controlar número de série** para eletrônicos e aparelhos: cada unidade passa a ter o seu número na entrada e na venda (ligue com o estoque do produto zerado).',
+                'Em **Vendido por**, escolha **Metro** (tecidos, fitas, cabos) ou **Quilo** (granel). Preço, custo, estoque mínimo e saldo passam a ser por metro ou quilo, com até 3 casas decimais. A unidade só muda enquanto o produto não tem movimentação de estoque.',
                 'Para cadastrar muitos produtos de uma vez, use **Importar**.',
             ],
         ],
@@ -467,6 +472,7 @@ return [
                 'Depois da entrada, imprima as etiquetas em **Etiquetas > Carregar de uma entrada de mercadorias**.',
                 'A conta a pagar da nota é lançada à parte, em **Contas a pagar**.',
                 'Produto com número de série: digite ou leia os números das unidades, um por linha. A quantidade é calculada pelos números informados.',
+                'Produto por metro ou quilo: informe os metros ou o peso recebidos (ex.: **50,5**) e o custo por metro ou quilo.',
             ],
         ],
 
@@ -482,7 +488,10 @@ return [
                 'Ajuste a quantidade de etiquetas de cada peça.',
                 'Clique em **Imprimir etiquetas**. Use **Limpar** para começar de novo.',
             ],
-            'tips' => ['Na janela de impressão, deixe a escala em 100% para o código de barras sair no tamanho certo.'],
+            'tips' => [
+                'Na janela de impressão, deixe a escala em 100% para o código de barras sair no tamanho certo.',
+                'Produto por metro ou quilo sai com o preço por metro ou quilo (ex.: R$ 24,90/m) e uma etiqueta por item da entrada: a do rolo ou do pote.',
+            ],
         ],
 
         'movimentar' => [
@@ -500,6 +509,7 @@ return [
             'tips' => [
                 'Para acertar o estoque de muitas peças de uma vez, faça um **Inventário**.',
                 'Produto com número de série: informe os números das unidades movimentadas, em vez da quantidade.',
+                'Produto por metro ou quilo: a quantidade aceita decimais (ex.: **0,75** m de tecido manchado).',
             ],
         ],
 
@@ -533,6 +543,7 @@ return [
                 'Evite vender peças da área que está sendo contada até concluir o inventário.',
                 'Cada loja tem o seu inventário; ele vale para a loja em que você está trabalhando.',
                 'Produtos com número de série ficam fora do inventário por quantidade: confira as unidades no detalhe do SKU e acerte pela **Movimentação**, informando os números.',
+                'Produto por metro ou quilo: meça ou pese e digite a quantidade com vírgula (ex.: **12,5**). O leitor de código de barras não conta esses produtos.',
             ],
         ],
 

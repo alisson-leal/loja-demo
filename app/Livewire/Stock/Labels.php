@@ -54,14 +54,16 @@ class Labels extends Component
 
     public function loadEntry(): void
     {
-        $entry = StockEntry::with('movements')->find((int) $this->entryId);
+        $entry = StockEntry::with('movements.variant.product')->find((int) $this->entryId);
 
         if (! $entry) {
             return;
         }
 
         foreach ($entry->movements as $movement) {
-            $this->items[$movement->product_variant_id] = ($this->items[$movement->product_variant_id] ?? 0) + (int) $movement->quantity;
+            // Por metro ou quilo, uma etiqueta para a peça (rolo ou pacote), não uma por milésimo.
+            $labels = $movement->variant->product->isFractional() ? 1 : (int) $movement->quantity;
+            $this->items[$movement->product_variant_id] = ($this->items[$movement->product_variant_id] ?? 0) + $labels;
         }
 
         session()->now('success', 'Itens da entrada incluídos, uma etiqueta por peça recebida.');

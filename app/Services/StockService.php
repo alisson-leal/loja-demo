@@ -22,6 +22,7 @@ class StockService
     public function __construct(private readonly SerialService $serials) {}
 
     /**
+     * @param  int  $quantity  Por metro ou quilo, em milésimos (ver App\Support\Quantity).
      * @param  list<string>  $serials  Obrigatório para produtos com controle de série: um número por unidade.
      */
     public function register(
@@ -52,7 +53,7 @@ class StockService
             if ($delta < 0 && $row->available() + $delta < 0
                 && ($tracked || ! ($allowNegative && $actor?->can('estoque.negativo')))) {
                 throw new BusinessRuleException(
-                    "Estoque insuficiente para o SKU {$locked->sku} nesta loja: disponível {$row->available()}, solicitado {$quantity}."
+                    "Estoque insuficiente para o SKU {$locked->sku} nesta loja: disponível {$locked->formatQuantity($row->available())}, solicitado {$locked->formatQuantity($quantity)}."
                 );
             }
 

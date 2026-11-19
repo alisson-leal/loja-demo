@@ -11,6 +11,7 @@ use App\Models\VariationAttribute;
 use App\Models\VariationValue;
 use App\Services\ProductService;
 use App\Services\StockEntryService;
+use App\Support\Quantity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -55,6 +56,13 @@ class Form extends Component
     public bool $tracksSerial = false;
 
     public string $warrantyMonths = '';
+
+    /** Unidade de venda: un, m ou kg (App\Support\Quantity). */
+    public string $unit = Quantity::UNIT;
+
+    /** A unidade só muda enquanto o produto não tem movimentação. */
+    #[Locked]
+    public bool $unitLocked = false;
 
     /** @var array<int, list<string>> */
     public array $selectedValues = [];
@@ -109,6 +117,8 @@ class Form extends Component
         $this->isActive = $product->is_active;
         $this->tracksSerial = $product->tracks_serial;
         $this->warrantyMonths = (string) ($product->warranty_months ?? '');
+        $this->unit = $product->unit;
+        $this->unitLocked = $product->variants->contains(fn ($variant) => $variant->hasHistory() || $variant->stock_on_hand !== 0);
 
         foreach ($product->variants as $variant) {
             foreach ($variant->values as $value) {
@@ -124,7 +134,7 @@ class Form extends Component
                 'barcode' => (string) $variant->barcode,
                 'cost_price' => $canSeeCost ? (string) $variant->cost_price : '0.00',
                 'sale_price' => (string) $variant->sale_price,
-                'min_stock' => (string) $variant->min_stock,
+                'min_stock' => Quantity::toInput($variant->min_stock, $product->unit),
                 'is_active' => $variant->is_active,
                 'on_hand' => $variant->stock_on_hand,
                 'can_remove' => ! $variant->hasHistory(),
@@ -166,12 +176,20 @@ class Form extends Component
         }
     }
 
+    /** Por metro ou quilo não há número de série. */
+    public function updatedUnit(): void
+    {
+        if (Quantity::isFractional($this->unit)) {
+            $this->tracksSerial = false;
+        }
+    }
+
     /** Quantidade usada pelo botão "Aplicar a todas" do estoque inicial. */
     public string $initialForAll = '';
 
     public function applyInitialStock(): void
     {
-        $quantity = ctype_digit(trim($this->initialForAll)) ? trim($this->initialForAll) : '';
+        $quantity = Quantity::parse($this->initialForAll, $this->unit) > 0 ? trim($this->initialForAll) : '';
 
         foreach ($this->rows as $index => $row) {
             if (! $row['id']) {
@@ -348,21 +366,25 @@ class Form extends Component
             'isActive' => ['boolean'],
             'tracksSerial' => ['boolean'],
             'warrantyMonths' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'unit' => ['required', Rule::in(array_keys(Quantity::UNITS))],
             'rows' => ['required', 'array', 'min:1', 'max:'.self::MAX_COMBINATIONS],
             'uploads.*' => self::IMAGE_RULES,
         ];
+
+        // Por metro ou quilo, as quantidades aceitam até três casas decimais.
+        $amount = Quantity::isFractional($this->unit) ? ['numeric', 'decimal:0,3'] : ['integer'];
 
         foreach ($this->rows as $i => $row) {
             $rules["rows.{$i}.sku"] = [...$code, 'max:64', Rule::unique('product_variants', 'sku')->ignore($row['id'])];
             $rules["rows.{$i}.barcode"] = [...$code, 'max:64', Rule::unique('product_variants', 'barcode')->ignore($row['id'])];
             $rules["rows.{$i}.cost_price"] = $money;
             $rules["rows.{$i}.sale_price"] = $money;
-            $rules["rows.{$i}.min_stock"] = ['required', 'integer', 'min:0', 'max:1000000'];
+            $rules["rows.{$i}.min_stock"] = ['required', ...$amount, 'min:0', 'max:1000000'];
             $rules["rows.{$i}.is_active"] = ['boolean'];
             // Com número de série, as unidades entram pela entrada de mercadorias, com os números.
             $rules["rows.{$i}.initial_stock"] = $this->tracksSerial
                 ? ['nullable', 'integer', 'max:0']
-                : ['nullable', 'integer', 'min:0', 'max:100000'];
+                : ['nullable', ...$amount, 'min:0', 'max:100000'];
         }
 
         return $rules;
@@ -393,6 +415,11 @@ class Form extends Component
         Gate::authorize($this->productId ? 'produtos.editar' : 'produtos.criar');
 
         $this->name = trim($this->name);
+
+        if ($this->unitLocked) {
+            $this->unit = Product::findOrFail($this->productId)->unit;
+        }
+
         $this->validate($this->rulesFor(), [
             'rows.*.initial_stock.max' => 'Com número de série, registre o estoque pela entrada de mercadorias, informando os números.',
         ], $this->attributeNames());
@@ -412,14 +439,22 @@ class Form extends Component
             'is_active' => $this->isActive,
             'tracks_serial' => $this->tracksSerial,
             'warranty_months' => $this->warrantyMonths === '' ? null : (int) $this->warrantyMonths,
+            'unit' => $this->unit,
         ];
+
+        if ($this->unitLocked) {
+            unset($data['unit']);
+        }
+
+        // O estoque mínimo vai ao serviço na escala guardada (milésimos por metro ou quilo).
+        $rows = array_map(fn (array $row) => ['min_stock' => Quantity::parse($row['min_stock'], $this->unit)] + $row, array_values($this->rows));
 
         try {
             $product = $products->save(
                 Auth::user(),
                 $this->productId ? Product::findOrFail($this->productId) : null,
                 $data,
-                array_values($this->rows),
+                $rows,
                 $this->removedVariantIds,
                 $this->uploads,
                 $this->removedImageIds,
@@ -447,7 +482,7 @@ class Form extends Component
     private function registerInitialStock(Product $product): ?int
     {
         $wanted = collect($this->rows)
-            ->filter(fn (array $row) => ! $row['id'] && (int) ($row['initial_stock'] ?? 0) > 0);
+            ->filter(fn (array $row) => ! $row['id'] && Quantity::parse($row['initial_stock'] ?? '', $product->unit) > 0);
 
         if ($wanted->isEmpty() || ! Gate::allows('estoque.entrada')) {
             return null;
@@ -456,7 +491,7 @@ class Form extends Component
         $variants = $product->variants()->get()->keyBy('combination_key');
         $items = $wanted->map(fn (array $row) => isset($variants[$row['key']]) ? [
             'variant_id' => $variants[$row['key']]->id,
-            'quantity' => (int) $row['initial_stock'],
+            'quantity' => Quantity::parse($row['initial_stock'], $product->unit),
             'unit_cost' => Gate::allows('produtos.ver_custo') ? $row['cost_price'] : null,
         ] : null)->filter()->values()->all();
 
@@ -483,6 +518,8 @@ class Form extends Component
             'canEnterStock' => Auth::user()->can('estoque.entrada'),
             'hasNewRows' => collect($this->rows)->contains(fn (array $row) => ! $row['id']),
             'maxImages' => ProductService::MAX_IMAGES,
+            'fractional' => Quantity::isFractional($this->unit),
+            'qtyStep' => Quantity::isFractional($this->unit) ? '0.001' : '1',
         ])->title($this->productId ? 'Editar produto' : 'Novo produto');
     }
 }

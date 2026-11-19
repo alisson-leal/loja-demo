@@ -12,7 +12,7 @@
             @foreach ($results as $result)
                 <button type="button" class="list-group-item list-group-item-action" wire:key="pick-{{ $result->id }}" wire:click="pick({{ $result->id }})">
                     {{ $result->fullName() }}
-                    <span class="small text-body-secondary">· {{ $result->sku }} · disponível {{ $result->availableIn() }}</span>
+                    <span class="small text-body-secondary">· {{ $result->sku }} · disponível {{ $result->formatQuantity($result->availableIn()) }}@if ($result->product->isFractional()) · {{ \App\Support\Money::format($result->sale_price) }}{{ \App\Support\Quantity::PER[$result->product->unit] }}@endif</span>
                 </button>
             @endforeach
         </div>

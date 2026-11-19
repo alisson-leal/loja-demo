@@ -6,6 +6,7 @@ use App\Exceptions\BusinessRuleException;
 use App\Livewire\Concerns\HandlesBusinessRules;
 use App\Models\Inventory;
 use App\Services\InventoryService;
+use App\Support\Quantity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -55,17 +56,22 @@ class InventoryCount extends Component
         Gate::authorize('estoque.inventario');
 
         $value = trim($value);
+        $item = $this->inventory()->items()->with('variant.product')->findOrFail($itemId);
+        $unit = $item->variant->product->unit;
 
-        if ($value !== '' && ! ctype_digit($value)) {
-            session()->now('error', 'Informe um número inteiro, sem sinal.');
+        // Por metro ou quilo, aceita até 3 casas decimais (ex.: 12,5).
+        $valid = Quantity::isFractional($unit)
+            ? preg_match('/^\d{1,9}([.,]\d{0,3})?$/', $value)
+            : ctype_digit($value);
+
+        if ($value !== '' && ! $valid) {
+            session()->now('error', Quantity::isFractional($unit) ? 'Informe a quantidade com até 3 casas decimais, sem sinal.' : 'Informe um número inteiro, sem sinal.');
 
             return;
         }
 
-        $item = $this->inventory()->items()->findOrFail($itemId);
-
         try {
-            $inventories->setCount($item, $value === '' ? null : (int) $value);
+            $inventories->setCount($item, $value === '' ? null : Quantity::parse($value, $unit));
         } catch (BusinessRuleException $exception) {
             session()->now('error', $exception->getMessage());
         }

@@ -8,7 +8,7 @@
                     <div class="d-flex justify-content-between align-items-start gap-2">
                         <div>
                             <h2 class="h6 mb-1">{{ $variant->fullName() }}</h2>
-                            <div class="small text-body-secondary">SKU {{ $variant->sku }} · saldo nesta loja {{ $variant->stockIn()['on_hand'] }} · disponível <strong id="available">{{ $variant->availableIn() }}</strong></div>
+                            <div class="small text-body-secondary">SKU {{ $variant->sku }} · saldo nesta loja {{ $variant->formatQuantity($variant->stockIn()['on_hand']) }} · disponível <strong id="available">{{ $variant->formatQuantity($variant->availableIn()) }}</strong></div>
                         </div>
                         <button type="button" class="btn btn-sm btn-light" wire:click="clearVariant">Trocar</button>
                     </div>
@@ -45,6 +45,10 @@
                                 <div id="serialsHelp" class="form-text text-break">
                                     Na saída, use números que estão nesta loja: {{ $inStock->isNotEmpty() ? $inStock->implode(', ') : 'nenhum no momento' }}.
                                 </div>
+                            </div>
+                        @elseif ($variant?->product->isFractional())
+                            <div class="col-12 col-md-5">
+                                <x-text-field name="quantity" label="Quantidade ({{ $variant->product->unit === 'm' ? 'metros' : 'quilos' }})" required inputmode="decimal" autocomplete="off" placeholder="Ex.: 1,5" />
                             </div>
                         @else
                             <div class="col-12 col-md-5">

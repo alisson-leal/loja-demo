@@ -9,6 +9,7 @@ use App\Models\SerialNumber;
 use App\Services\SerialService;
 use App\Services\StockService;
 use App\Support\CurrentStore;
+use App\Support\Quantity;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -72,7 +73,9 @@ class Movement extends Component
 
     public function save(StockService $stock): void
     {
-        $tracked = $this->variantId && ProductVariant::with('product')->find($this->variantId)?->product->tracks_serial;
+        $product = $this->variantId ? ProductVariant::with('product')->find($this->variantId)?->product : null;
+        $tracked = (bool) $product?->tracks_serial;
+        $unit = $product?->isFractional() ? $product->unit : null;
 
         if ($tracked) {
             $this->quantity = (string) SerialService::count($this->serials);
@@ -81,7 +84,11 @@ class Movement extends Component
         $validated = $this->validate([
             'variantId' => ['required', 'integer'],
             'type' => ['required', Rule::enum(MovementType::class)->only(MovementType::manualTypes())],
-            'quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'quantity' => $unit
+                ? ['required', fn ($attribute, $value, $fail) => Quantity::parse($value, $unit) > 0 && Quantity::parse($value, $unit) <= 1_000_000_000
+                    ? null
+                    : $fail('Informe a quantidade em '.($unit === Quantity::METER ? 'metros' : 'quilos').', com até 3 casas (ex.: 0,75).')]
+                : ['required', 'integer', 'min:1', 'max:1000000'],
             'reason' => ['required', 'string', 'min:3', 'max:255'],
         ], [
             'variantId.required' => 'Selecione o produto.',
@@ -96,7 +103,7 @@ class Movement extends Component
         $done = $this->attempt(fn () => $stock->register(
             $variant,
             $type,
-            (int) $validated['quantity'],
+            $unit ? Quantity::parse($validated['quantity'], $unit) : (int) $validated['quantity'],
             $validated['reason'],
             Auth::user(),
             allowNegative: $this->allowNegative,

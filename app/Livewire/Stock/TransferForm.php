@@ -8,6 +8,7 @@ use App\Models\Store;
 use App\Services\SerialService;
 use App\Services\StockTransferService;
 use App\Support\CurrentStore;
+use App\Support\Quantity;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -20,7 +21,7 @@ class TransferForm extends Component
 {
     use HandlesBusinessRules;
 
-    /** @var array<int, int> id da variação => quantidade */
+    /** @var array<int, int|string> id da variação => quantidade (por metro ou quilo, como digitada) */
     public array $items = [];
 
     /** @var array<int, string> id da variação => números de série (produtos com controle de série) */
@@ -38,14 +39,23 @@ class TransferForm extends Component
     #[On('variant-picked')]
     public function addVariant(int $id): void
     {
-        if ($this->tracks($id)) {
+        $product = ProductVariant::with('product')->find($id)?->product;
+
+        if ($product?->tracks_serial) {
             $this->items[$id] = SerialService::count($this->serials[$id] ?? '');
             $this->serials[$id] ??= '';
 
             return;
         }
 
-        $this->items[$id] = ($this->items[$id] ?? 0) + 1;
+        // Por metro ou quilo, a quantidade é digitada (ex.: 12,5).
+        if ($product?->isFractional()) {
+            $this->items[$id] ??= '';
+
+            return;
+        }
+
+        $this->items[$id] = ((int) ($this->items[$id] ?? 0)) + 1;
     }
 
     #[On('serial-picked')]
@@ -83,10 +93,16 @@ class TransferForm extends Component
             return;
         }
 
-        $done = $this->attempt(function () use ($transfers) {
+        $units = $this->units();
+
+        $done = $this->attempt(function () use ($transfers, $units) {
             $items = collect($this->items)->map(fn ($qty, $id) => [
                 'variant_id' => (int) $id,
-                'quantity' => array_key_exists($id, $this->serials) ? SerialService::count($this->serials[$id]) : max(0, (int) $qty),
+                'quantity' => match (true) {
+                    array_key_exists($id, $this->serials) => SerialService::count($this->serials[$id]),
+                    isset($units[$id]) => Quantity::parse($qty, $units[$id]),
+                    default => max(0, (int) $qty),
+                },
                 'serials' => array_key_exists($id, $this->serials) ? SerialService::parse($this->serials[$id]) : [],
             ])->values()->all();
 
@@ -99,19 +115,31 @@ class TransferForm extends Component
         }
     }
 
-    private function tracks(int $id): bool
+    /** @return array<int, string> id da variação => unidade, só dos itens por metro ou quilo */
+    private function units(): array
     {
-        return (bool) ProductVariant::with('product')->find($id)?->product->tracks_serial;
+        return ProductVariant::with('product')->whereIn('id', array_keys($this->items))->get()
+            ->filter(fn (ProductVariant $variant) => $variant->product->isFractional())
+            ->mapWithKeys(fn (ProductVariant $variant) => [$variant->id => $variant->product->unit])
+            ->all();
     }
 
     public function render(): View
     {
         $from = CurrentStore::id();
+        $variants = ProductVariant::with(['product', 'values.attribute', 'storeStocks'])->whereIn('id', array_keys($this->items))->get()->keyBy('id');
+
+        // Quantidade de cada item na escala guardada; por metro ou quilo, a linha conta como uma peça.
+        $quantities = collect($this->items)->map(fn ($qty, $id) => isset($variants[$id]) && $variants[$id]->product->isFractional()
+            ? Quantity::parse($qty, $variants[$id]->product->unit)
+            : (int) $qty);
 
         return view('livewire.stock.transfer-form', [
             'from' => Store::find($from),
             'destinations' => Store::active()->ordered()->whereKeyNot($from)->get(),
-            'variants' => ProductVariant::with(['product', 'values.attribute', 'storeStocks'])->whereIn('id', array_keys($this->items))->get()->keyBy('id'),
+            'variants' => $variants,
+            'quantities' => $quantities,
+            'pieces' => $quantities->map(fn ($qty, $id) => isset($variants[$id]) && $variants[$id]->product->isFractional() ? ($qty > 0 ? 1 : 0) : $qty)->sum(),
         ]);
     }
 }

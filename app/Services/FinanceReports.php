@@ -10,6 +10,7 @@ use App\Models\SaleItem;
 use App\Models\SalePayment;
 use App\Models\SaleReturn;
 use App\Support\Money;
+use App\Support\Quantity;
 use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Collection;
@@ -98,7 +99,7 @@ class FinanceReports
         $gross = Money::toCents((clone $sales)->sum('total'));
         $discounts = Money::toCents((clone $sales)->sum('discount_total'));
         $count = (clone $sales)->count();
-        $items = (int) SaleItem::whereIn('sale_id', (clone $sales)->select('id'))->sum('quantity');
+        $items = (int) SaleItem::whereIn('sale_id', (clone $sales)->select('id'))->sum(DB::raw(Quantity::piecesSql('quantity', 'unit')));
         $returns = Money::toCents(SaleReturn::whereBetween('created_at', $range)
             ->when($this->storeId, fn ($q) => $q->whereHas('sale', fn ($s) => $s->where('store_id', $this->storeId)))->sum('total'));
         $cancelled = Sale::where('status', Sale::CANCELLED)->whereBetween('created_at', $range)->inStore($this->storeId)->count();
@@ -207,14 +208,14 @@ class FinanceReports
         $soldCost = (float) SaleItem::join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sales.status', Sale::COMPLETED)->whereBetween('sales.created_at', $range)
             ->tap($this->salesFilter())
-            ->sum(DB::raw('sale_items.unit_cost * sale_items.quantity'));
+            ->sum(DB::raw('sale_items.unit_cost * sale_items.quantity / '.Quantity::scaleSql('sale_items.unit')));
         $returnedCost = (float) DB::table('sale_return_items')
             ->join('sale_returns', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
             ->join('sale_items', 'sale_items.id', '=', 'sale_return_items.sale_item_id')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->whereBetween('sale_returns.created_at', $range)
             ->tap($this->salesFilter())
-            ->sum(DB::raw('sale_items.unit_cost * sale_return_items.quantity'));
+            ->sum(DB::raw('sale_items.unit_cost * sale_return_items.quantity / '.Quantity::scaleSql('sale_items.unit')));
         $cost = Money::toCents($soldCost) - Money::toCents($returnedCost);
 
         $fees = Money::toCents(Receivable::join('sales', 'sales.id', '=', 'receivables.sale_id')
@@ -288,9 +289,9 @@ class FinanceReports
                 ->whereColumn('sale_items.product_variant_id', 'product_variants.id')
                 ->where('sales.status', Sale::COMPLETED)
                 ->where('sales.created_at', '>=', $since))
-            ->selectRaw('product_variants.id, products.name as product, product_variants.sku, product_variants.stock_on_hand as quantity')
-            ->selectRaw('product_variants.stock_on_hand * product_variants.cost_price as cost_value')
-            ->selectRaw('product_variants.stock_on_hand * product_variants.sale_price as sale_value')
+            ->selectRaw('product_variants.id, products.name as product, products.unit, product_variants.sku, product_variants.stock_on_hand as quantity')
+            ->selectRaw('product_variants.stock_on_hand * product_variants.cost_price / '.Quantity::scaleSql('products.unit').' as cost_value')
+            ->selectRaw('product_variants.stock_on_hand * product_variants.sale_price / '.Quantity::scaleSql('products.unit').' as sale_value')
             ->selectRaw('(SELECT MAX(s.created_at) FROM sale_items si JOIN sales s ON s.id = si.sale_id WHERE si.product_variant_id = product_variants.id AND s.status = ?) as last_sale', [Sale::COMPLETED])
             ->orderByDesc('cost_value')
             ->limit($limit)
@@ -300,9 +301,14 @@ class FinanceReports
     /** @return array{quantity: int, cost: int, sale: int} */
     public function stockValue(): array
     {
+        // Por metro ou quilo, cada SKU com saldo conta como uma peça; o valor usa a quantidade real.
+        $scale = Quantity::scaleSql('products.unit');
         $row = DB::table('product_variants')
-            ->where('stock_on_hand', '>', 0)
-            ->selectRaw('COALESCE(SUM(stock_on_hand), 0) as quantity, COALESCE(SUM(stock_on_hand * cost_price), 0) as cost, COALESCE(SUM(stock_on_hand * sale_price), 0) as sale')
+            ->join('products', 'products.id', '=', 'product_variants.product_id')
+            ->where('product_variants.stock_on_hand', '>', 0)
+            ->selectRaw('COALESCE(SUM('.Quantity::piecesSql('product_variants.stock_on_hand', 'products.unit').'), 0) as quantity')
+            ->selectRaw("COALESCE(SUM(product_variants.stock_on_hand * product_variants.cost_price / {$scale}), 0) as cost")
+            ->selectRaw("COALESCE(SUM(product_variants.stock_on_hand * product_variants.sale_price / {$scale}), 0) as sale")
             ->first();
 
         return ['quantity' => (int) $row->quantity, 'cost' => Money::toCents($row->cost), 'sale' => Money::toCents($row->sale)];
@@ -319,12 +325,18 @@ class FinanceReports
             ->tap($this->salesFilter());
     }
 
-    /** Quantidade, receita e custo líquidos de devoluções. */
+    /**
+     * Peças, quantidade, receita e custo líquidos de devoluções. Por metro ou
+     * quilo, a quantidade fica em milésimos e cada venda conta como uma peça.
+     */
     private function itemTotalsSql(): string
     {
-        return 'SUM(sale_items.quantity - sale_items.returned_quantity) as quantity, '
+        $net = '(sale_items.quantity - sale_items.returned_quantity)';
+
+        return 'SUM('.Quantity::piecesSql($net, 'sale_items.unit').') as quantity, '
+            ."SUM({$net}) as amount, MAX(sale_items.unit) as unit, "
             .'SUM(sale_items.total - COALESCE((SELECT SUM(ri.amount) FROM sale_return_items ri WHERE ri.sale_item_id = sale_items.id), 0)) as revenue, '
-            .'SUM(sale_items.unit_cost * (sale_items.quantity - sale_items.returned_quantity)) as cost';
+            ."SUM(sale_items.unit_cost * {$net} / ".Quantity::scaleSql('sale_items.unit').') as cost';
     }
 
     private function withMargin(object $row): object
@@ -335,6 +347,8 @@ class FinanceReports
         return (object) [
             'name' => $row->name,
             'quantity' => (int) $row->quantity,
+            'amount' => (int) $row->amount,
+            'unit' => $row->unit,
             'revenue' => $revenue,
             'cost' => $cost,
             'profit' => $revenue - $cost,

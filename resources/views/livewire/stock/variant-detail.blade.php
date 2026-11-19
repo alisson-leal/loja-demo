@@ -6,12 +6,18 @@
         <div class="card-body">
             <h2 class="h5 mb-1">{{ $variant->fullName() }}</h2>
             <p class="small text-body-secondary">SKU {{ $variant->sku }}@if ($variant->barcode) · Código de barras {{ $variant->barcode }}@endif</p>
-            @php($here = $variant->stockIn())
+            @php
+                $here = $variant->stockIn();
+                $q = fn ($quantity) => $variant->formatQuantity($quantity);
+            @endphp
+            @if ($variant->product->isFractional())
+                <p class="small mb-2"><span class="badge text-bg-light">Vendido por {{ mb_strtolower($variant->product->unitLabel()) }}</span></p>
+            @endif
             <div class="row g-3">
-                <div class="col-6 col-md-3"><div class="stat-value">{{ $here['on_hand'] }}</div><div class="stat-label">Saldo físico{{ $multiple ? ' nesta loja' : '' }}</div></div>
-                <div class="col-6 col-md-3"><div class="stat-value">{{ $here['reserved'] }}</div><div class="stat-label">Reservado</div></div>
-                <div class="col-6 col-md-3"><div class="stat-value">{{ $here['available'] }}</div><div class="stat-label">Disponível</div></div>
-                <div class="col-6 col-md-3"><div class="stat-value">{{ $variant->min_stock }}</div><div class="stat-label">Estoque mínimo</div></div>
+                <div class="col-6 col-md-3"><div class="stat-value">{{ $q($here['on_hand']) }}</div><div class="stat-label">Saldo físico{{ $multiple ? ' nesta loja' : '' }}</div></div>
+                <div class="col-6 col-md-3"><div class="stat-value">{{ $q($here['reserved']) }}</div><div class="stat-label">Reservado</div></div>
+                <div class="col-6 col-md-3"><div class="stat-value">{{ $q($here['available']) }}</div><div class="stat-label">Disponível</div></div>
+                <div class="col-6 col-md-3"><div class="stat-value">{{ $q($variant->min_stock) }}</div><div class="stat-label">Estoque mínimo</div></div>
             </div>
             @if ($multiple)
                 <div class="table-responsive mt-3">
@@ -21,9 +27,9 @@
                         <tbody>
                             @foreach ($stores as $store)
                                 @php($s = $variant->stockIn($store->id))
-                                <tr wire:key="store-stock-{{ $store->id }}"><td>{{ $store->name }}</td><td>{{ $s['on_hand'] }}</td><td>{{ $s['reserved'] }}</td><td class="fw-semibold">{{ $s['available'] }}</td></tr>
+                                <tr wire:key="store-stock-{{ $store->id }}"><td>{{ $store->name }}</td><td>{{ $q($s['on_hand']) }}</td><td>{{ $q($s['reserved']) }}</td><td class="fw-semibold">{{ $q($s['available']) }}</td></tr>
                             @endforeach
-                            <tr class="report-total"><th scope="row">Rede</th><td>{{ $variant->stock_on_hand }}</td><td>{{ $variant->stock_reserved }}</td><td>{{ $variant->available() }}</td></tr>
+                            <tr class="report-total"><th scope="row">Rede</th><td>{{ $q($variant->stock_on_hand) }}</td><td>{{ $q($variant->stock_reserved) }}</td><td>{{ $q($variant->available()) }}</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -66,8 +72,8 @@
                         <tr wire:key="movement-{{ $movement->id }}">
                             <td class="text-nowrap">{{ $movement->created_at->format('d/m/Y H:i') }}</td>
                             <td class="text-nowrap">{{ $movement->type->label() }}</td>
-                            <td @class(['fw-bold', 'text-success' => $movement->quantity > 0, 'text-danger' => $movement->quantity < 0])>{{ $movement->quantity > 0 ? '+' : '' }}{{ $movement->quantity }}</td>
-                            <td>{{ $movement->balance_after }}</td>
+                            <td @class(['fw-bold', 'text-nowrap', 'text-success' => $movement->quantity > 0, 'text-danger' => $movement->quantity < 0])>{{ $movement->quantity > 0 ? '+' : '' }}{{ $q($movement->quantity) }}</td>
+                            <td class="text-nowrap">{{ $q($movement->balance_after) }}</td>
                             <td>{{ $movement->reason }}@if ($multiple && $movement->store)<div class="small text-body-secondary">{{ $movement->store->name }}</div>@endif</td>
                             <td>{{ $movement->user?->name ?? 'Sistema' }}</td>
                         </tr>

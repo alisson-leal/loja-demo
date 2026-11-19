@@ -21,7 +21,7 @@
                                         @endif
                                     </td>
                                     <td class="text-nowrap">{{ Money::format($item->total) }}</td>
-                                    <td>{{ $item->returnableQuantity() }}</td>
+                                    <td class="text-nowrap">{{ $item->formatQuantity($item->returnableQuantity()) }}</td>
                                     <td>
                                         @if ($item->serials)
                                             <fieldset>
@@ -35,6 +35,12 @@
                                                     <span class="small text-body-secondary">Tudo devolvido</span>
                                                 @endforelse
                                             </fieldset>
+                                        @elseif ($item->isFractional())
+                                            <div class="input-group input-group-sm grid-medium has-validation">
+                                                <input type="text" inputmode="decimal" autocomplete="off" aria-label="Quantidade a devolver de {{ $item->description }}, em {{ $item->unit === 'm' ? 'metros' : 'quilos' }}" wire:model="quantities.{{ $item->id }}" class="form-control text-end @error('quantities.'.$item->id) is-invalid @enderror">
+                                                <span class="input-group-text">{{ $item->unit }}</span>
+                                                @error('quantities.'.$item->id) <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            </div>
                                         @else
                                             <input type="number" min="0" max="{{ $item->returnableQuantity() }}" step="1" aria-label="Quantidade a devolver de {{ $item->description }}" wire:model="quantities.{{ $item->id }}" class="form-control form-control-sm grid-small @error('quantities.'.$item->id) is-invalid @enderror">
                                         @endif

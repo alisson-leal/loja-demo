@@ -58,8 +58,8 @@
                                 <div class="small text-body-secondary">{{ $movement->variant->sku }}</div>
                             </td>
                             <td class="text-nowrap">{{ $movement->type->label() }}</td>
-                            <td @class(['fw-bold', 'text-success' => $movement->quantity > 0, 'text-danger' => $movement->quantity < 0])>{{ $movement->quantity > 0 ? '+' : '' }}{{ $movement->quantity }}</td>
-                            <td>{{ $movement->balance_after }}</td>
+                            <td @class(['fw-bold', 'text-nowrap', 'text-success' => $movement->quantity > 0, 'text-danger' => $movement->quantity < 0])>{{ $movement->quantity > 0 ? '+' : '' }}{{ $movement->variant->formatQuantity($movement->quantity) }}</td>
+                            <td class="text-nowrap">{{ $movement->variant->formatQuantity($movement->balance_after) }}</td>
                             <td>{{ $movement->reason }}</td>
                             <td>{{ $movement->user?->name ?? 'Sistema' }}</td>
                         </tr>

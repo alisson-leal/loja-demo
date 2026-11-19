@@ -10,6 +10,7 @@ use App\Models\SerialNumber;
 use App\Models\User;
 use App\Models\VariantCostHistory;
 use App\Models\VariationValue;
+use App\Support\Quantity;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -121,6 +122,21 @@ class ProductService
         }
     }
 
+    /**
+     * A unidade define a escala das quantidades já registradas: só muda enquanto
+     * o produto não tem movimentação de estoque, venda ou reserva.
+     */
+    private function assertCanChangeUnit(Product $product, string $unit): void
+    {
+        if (! array_key_exists($unit, Quantity::UNITS)) {
+            throw new BusinessRuleException('Unidade de venda inválida.');
+        }
+
+        if ($product->exists && $product->variants()->get()->contains(fn (ProductVariant $variant) => $variant->hasHistory() || $variant->stock_on_hand !== 0)) {
+            throw new BusinessRuleException('A unidade de venda só pode mudar enquanto o produto não tem movimentação de estoque. Cadastre um novo produto com a unidade desejada.');
+        }
+    }
+
     /** @param array<string, mixed> $data */
     private function persistProduct(Product $product, array $data, bool $canEditCost): Product
     {
@@ -141,6 +157,15 @@ class ProductService
         if (array_key_exists('tracks_serial', $data) && (bool) $data['tracks_serial'] !== (bool) $product->tracks_serial) {
             $this->assertCanChangeSerialControl($product, (bool) $data['tracks_serial']);
             $product->tracks_serial = (bool) $data['tracks_serial'];
+        }
+
+        if (array_key_exists('unit', $data) && $data['unit'] !== $product->unit) {
+            $this->assertCanChangeUnit($product, $data['unit']);
+            $product->unit = $data['unit'];
+        }
+
+        if ($product->isFractional() && $product->tracks_serial) {
+            throw new BusinessRuleException('Produto vendido por metro ou quilo não tem controle de número de série.');
         }
 
         if ($canEditCost) {

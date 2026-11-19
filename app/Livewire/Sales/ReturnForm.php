@@ -8,6 +8,7 @@ use App\Models\PaymentMethod;
 use App\Models\Sale;
 use App\Services\SaleReturnService;
 use App\Services\SerialService;
+use App\Support\Quantity;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -69,18 +70,30 @@ class ReturnForm extends Component
 
         $this->updatedReturnSerials();
 
-        $this->validate([
-            'quantities.*' => ['required', 'integer', 'min:0', 'max:1000000'],
+        // Por metro ou quilo, a quantidade devolvida aceita decimais (ex.: 0,5).
+        $units = Sale::with('items')->findOrFail($this->saleId)->items->pluck('unit', 'id');
+        $rules = [
             'reason' => ['required', 'string', 'min:3', 'max:255'],
             'settlement' => ['required', 'string'],
-        ], [], ['quantities.*' => 'quantidade', 'reason' => 'motivo']);
+        ];
+
+        foreach (array_keys($this->quantities) as $itemId) {
+            $unit = $units[$itemId] ?? null;
+            $rules["quantities.{$itemId}"] = Quantity::isFractional($unit)
+                ? ['nullable', fn ($attribute, $value, $fail) => trim((string) $value) === '' || trim((string) $value) === '0' || Quantity::parse($value, $unit) > 0
+                    ? null
+                    : $fail('Informe a quantidade com até 3 casas (ex.: 0,5).')]
+                : ['required', 'integer', 'min:0', 'max:1000000'];
+        }
+
+        $this->validate($rules, [], ['quantities.*' => 'quantidade', 'reason' => 'motivo']);
 
         $items = [];
 
         foreach ($this->quantities as $itemId => $quantity) {
             $items[] = [
                 'sale_item_id' => (int) $itemId,
-                'quantity' => (int) $quantity,
+                'quantity' => Quantity::isFractional($units[$itemId] ?? null) ? Quantity::parse($quantity, $units[$itemId]) : (int) $quantity,
                 'restock' => (bool) ($this->restock[$itemId] ?? false),
                 'serials' => array_values(array_map('strval', (array) ($this->returnSerials[$itemId] ?? []))),
             ];

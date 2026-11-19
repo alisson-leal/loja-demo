@@ -1,5 +1,5 @@
-@php use App\Support\Money; @endphp
-<div>
+@php use App\Support\Money; use App\Support\Quantity; @endphp
+<div x-data x-on:focus-quantity.window="setTimeout(() => { const el = document.getElementById('qty-input-' + $event.detail.id); el?.focus(); el?.select(); }, 60)">
     <x-flash />
 
     @if (! $session)
@@ -51,8 +51,8 @@
                                             <td>
                                                 {{ $variant->fullName() }}
                                                 <div class="small text-body-secondary">{{ $variant->sku }}</div>
-                                                @if (! $consignment && (int) $line['quantity'] > $variant->availableIn($session->store_id))
-                                                    <div class="small text-danger">Disponível nesta loja: {{ $variant->availableIn($session->store_id) }}</div>
+                                                @if (! $consignment && $computation['quantities'][$i] > $variant->availableIn($session->store_id))
+                                                    <div class="small text-danger">Disponível nesta loja: {{ $variant->formatQuantity($variant->availableIn($session->store_id)) }}</div>
                                                 @endif
                                                 @if ($variant->product->tracks_serial)
                                                     <label for="serials-{{ $i }}" class="form-label small mt-1 mb-0">Número de série</label>
@@ -62,10 +62,18 @@
                                                     <div class="small text-body-secondary">Garantia de {{ $variant->product->warranty_months }} {{ $variant->product->warranty_months === 1 ? 'mês' : 'meses' }}</div>
                                                 @endif
                                             </td>
-                                            <td class="text-nowrap">{{ Money::format($variant->sale_price) }}</td>
+                                            <td class="text-nowrap">{{ Money::format($variant->sale_price) }}{{ Quantity::PER[$variant->product->unit] ?? '' }}</td>
                                             <td>
                                                 @if ($variant->product->tracks_serial)
                                                     <span class="fw-bold" id="qty-{{ $i }}">{{ (int) $line['quantity'] }}</span>
+                                                @elseif ($variant->product->isFractional())
+                                                    <div class="input-group input-group-sm pos-qty">
+                                                        <input id="qty-input-{{ $variant->id }}" type="text" inputmode="decimal" autocomplete="off" placeholder="0,000"
+                                                               class="form-control text-end @if (trim((string) $line['quantity']) !== '' && $computation['quantities'][$i] === 0) is-invalid @endif"
+                                                               aria-label="{{ $variant->product->unit === 'm' ? 'Metros' : 'Peso em quilos' }} de {{ $variant->fullName() }}"
+                                                               wire:model.live.debounce.500ms="cart.{{ $i }}.quantity" x-on:keydown.enter.prevent="$dispatch('focus-picker')">
+                                                        <span class="input-group-text">{{ $variant->product->unit }}</span>
+                                                    </div>
                                                 @else
                                                     <div class="input-group input-group-sm pos-qty">
                                                         <button type="button" class="btn btn-light" wire:click="changeQuantity({{ $i }}, -1)" aria-label="Diminuir quantidade de {{ $variant->fullName() }}">−</button>

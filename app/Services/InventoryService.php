@@ -75,10 +75,15 @@ class InventoryService
 
         $item = $inventory->items()
             ->whereHas('variant', fn ($query) => $query->where('barcode', $code)->orWhere('sku', $code))
+            ->with('variant.product')
             ->first();
 
         if (! $item) {
             throw new BusinessRuleException("O código {$code} não faz parte deste inventário.");
+        }
+
+        if ($item->variant->product->isFractional()) {
+            throw new BusinessRuleException("{$item->variant->fullName()} é vendido por {$item->variant->product->unitLabel()}: meça ou pese e digite a quantidade contada.");
         }
 
         $item->update(['counted_quantity' => ($item->counted_quantity ?? 0) + 1]);

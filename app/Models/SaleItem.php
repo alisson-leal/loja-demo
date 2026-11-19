@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Quantity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,9 +10,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SaleItem extends Model
 {
     protected $fillable = [
-        'sale_id', 'product_variant_id', 'description', 'sku', 'quantity', 'returned_quantity',
+        'sale_id', 'product_variant_id', 'description', 'sku', 'quantity', 'unit', 'returned_quantity',
         'unit_price', 'unit_cost', 'discount', 'total', 'serials', 'warranty_until',
     ];
+
+    protected $attributes = ['unit' => Quantity::UNIT];
+
+    /** Quantidade no formato da unidade da venda ("1,5 m", "3"). */
+    public function formatQuantity(int|float|string|null $quantity = null, bool $withUnit = true): string
+    {
+        return Quantity::format($quantity ?? $this->quantity, $this->unit, $withUnit);
+    }
+
+    public function isFractional(): bool
+    {
+        return Quantity::isFractional($this->unit);
+    }
 
     protected function casts(): array
     {

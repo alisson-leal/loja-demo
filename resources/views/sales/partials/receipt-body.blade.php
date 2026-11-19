@@ -21,7 +21,11 @@
         @foreach ($sale->items as $item)
             <tr>
                 <td style="padding: 3px 0;">
-                    {{ $item->quantity }}x {{ $item->description }}
+                    @if ($item->isFractional())
+                        {{ $item->formatQuantity() }} {{ $item->description }}<br><span style="font-size: 12px;">{{ Money::format($item->unit_price) }}{{ \App\Support\Quantity::PER[$item->unit] }}</span>
+                    @else
+                        {{ $item->quantity }}x {{ $item->description }}
+                    @endif
                     @if ($item->serials)<br><span style="font-size: 12px; word-break: break-all;">Nº de série: {{ implode(', ', $item->serials) }}</span>@endif
                     @if ($item->warranty_until)<br><span style="font-size: 12px;">Garantia até {{ $item->warranty_until->format('d/m/Y') }}</span>@endif
                 </td>

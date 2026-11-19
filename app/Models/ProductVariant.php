@@ -111,6 +111,12 @@ class ProductVariant extends Model
         return $text !== '' ? $text : 'Único';
     }
 
+    /** Quantidade no formato da unidade de venda do produto ("1,5 m", "3"). */
+    public function formatQuantity(int|float|string|null $quantity, bool $withUnit = true): string
+    {
+        return $this->product->formatQuantity($quantity, $withUnit);
+    }
+
     public function fullName(): string
     {
         return $this->values->isEmpty() ? $this->product->name : "{$this->product->name} - {$this->label()}";

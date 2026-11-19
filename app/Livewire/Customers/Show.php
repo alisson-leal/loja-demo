@@ -55,7 +55,7 @@ class Show extends Component
                 ->groupBy('sale_items.product_variant_id', 'sale_items.description')
                 ->orderByDesc(DB::raw('MAX(sales.created_at)'))
                 ->limit(30)
-                ->selectRaw('sale_items.description as description, SUM(sale_items.quantity - sale_items.returned_quantity) as quantity, MAX(sales.created_at) as last_at')
+                ->selectRaw('sale_items.description as description, SUM(sale_items.quantity - sale_items.returned_quantity) as quantity, MAX(sale_items.unit) as unit, MAX(sales.created_at) as last_at')
                 ->toBase()
                 ->get(),
             'sales' => Sale::where('customer_id', $customer->id)->with('user:id,name')->latest('id')->paginate(10),

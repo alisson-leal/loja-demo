@@ -115,7 +115,7 @@
                                         <thead><tr><th scope="col">Item</th><th scope="col">Qtde.</th><th scope="col" class="text-end">Total</th></tr></thead>
                                         <tbody>
                                             @foreach ($topProducts as $row)
-                                                <tr wire:key="top-{{ $loop->index }}"><td>{{ $row->description }}</td><td>{{ (int) $row->quantity }}</td><td class="text-end text-nowrap">{{ Money::format($row->total) }}</td></tr>
+                                                <tr wire:key="top-{{ $loop->index }}"><td>{{ $row->description }}</td><td class="text-nowrap">{{ \App\Support\Quantity::format($row->quantity, $row->unit) }}</td><td class="text-end text-nowrap">{{ Money::format($row->total) }}</td></tr>
                                             @endforeach
                                         </tbody>
                                     </table>
@@ -229,8 +229,8 @@
                                         <tr wire:key="low-{{ $item->id }}">
                                             <td>{{ $item->fullName() }}</td>
                                             <td>{{ $item->sku }}</td>
-                                            <td>{{ $item->available() }}</td>
-                                            <td>{{ $item->min_stock }}</td>
+                                            <td class="text-nowrap">{{ $item->formatQuantity($item->available()) }}</td>
+                                            <td class="text-nowrap">{{ $item->formatQuantity($item->min_stock) }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>

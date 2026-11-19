@@ -137,7 +137,7 @@
                     <h2 class="h6">Produtos adquiridos</h2>
                     @forelse ($products as $product)
                         <div class="d-flex justify-content-between py-2 border-bottom" wire:key="product-{{ $loop->index }}">
-                            <span>{{ $product->description }}</span><strong class="ms-2">{{ (int) $product->quantity }}</strong>
+                            <span>{{ $product->description }}</span><strong class="ms-2 text-nowrap">{{ \App\Support\Quantity::format($product->quantity, $product->unit) }}</strong>
                         </div>
                     @empty
                         <p class="small text-body-secondary mb-0">Nenhum produto adquirido.</p>

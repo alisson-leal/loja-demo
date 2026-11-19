@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Sale;
 use App\Support\Money;
+use App\Support\Quantity;
 use App\Support\WhatsApp;
 
 class SaleReceiptService
@@ -14,7 +15,9 @@ class SaleReceiptService
         $lines = ["*{$store['name']}*", "Comprovante da venda #{$sale->number()}", $sale->created_at->format('d/m/Y H:i'), ''];
 
         foreach ($sale->items as $item) {
-            $lines[] = "{$item->quantity}x {$item->description} - ".Money::format($item->total);
+            $lines[] = $item->isFractional()
+                ? "{$item->formatQuantity()} {$item->description} (".Money::format($item->unit_price).Quantity::PER[$item->unit].') - '.Money::format($item->total)
+                : "{$item->quantity}x {$item->description} - ".Money::format($item->total);
         }
 
         $lines[] = '';

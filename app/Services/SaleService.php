@@ -38,7 +38,8 @@ class SaleService
      *
      * Os preços vêm sempre do banco, nunca da tela.
      *
-     * @param  list<array{variant_id: int, quantity: int, discount: int, serials?: list<string>}>  $cart  Valores em centavos.
+     * @param  list<array{variant_id: int, quantity: int, discount: int, serials?: list<string>}>  $cart  Valores em centavos;
+     *                                                                                                    por metro ou quilo, quantidade em milésimos.
      * @param  list<array{method_id: int, amount: int, credit_code?: ?string, installments?: int}>  $payments  Valores em centavos.
      */
     public function finalize(
@@ -85,6 +86,7 @@ class SaleService
             'unit_price' => Money::toCents($variants[$line['variant_id']]->sale_price),
             'quantity' => $line['quantity'],
             'discount' => $line['discount'],
+            'unit' => $variants[$line['variant_id']]->product->unit,
         ], $cart), $orderDiscount);
 
         $this->assertDiscountAllowed($actor, $calculation);
@@ -117,6 +119,7 @@ class SaleService
                 'description' => $variant->fullName(),
                 'sku' => $variant->sku,
                 'quantity' => $line['quantity'],
+                'unit' => $variant->product->unit,
                 'unit_price' => $variant->sale_price,
                 'unit_cost' => $variant->cost_price,
                 'discount' => Money::fromCents($calculation['lines'][$index]['discount']),

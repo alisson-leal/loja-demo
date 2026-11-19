@@ -53,13 +53,13 @@
 
                     @if ($canSeeCost)
                         <div class="col-6 col-md-3">
-                            <label for="costPrice" class="form-label">Custo base (R$)</label>
+                            <label for="costPrice" class="form-label">Custo base (R${{ \App\Support\Quantity::PER[$unit] ?? '' }})</label>
                             <input id="costPrice" type="number" step="0.01" min="0" wire:model.live.blur="costPrice" class="form-control @error('costPrice') is-invalid @enderror">
                             @error('costPrice') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     @endif
                     <div class="col-6 col-md-3">
-                        <label for="salePrice" class="form-label">Preço base (R$)</label>
+                        <label for="salePrice" class="form-label">Preço base (R${{ \App\Support\Quantity::PER[$unit] ?? '' }})</label>
                         <input id="salePrice" type="number" step="0.01" min="0" wire:model.live.blur="salePrice" class="form-control @error('salePrice') is-invalid @enderror">
                         @error('salePrice') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -76,18 +76,38 @@
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
+                        <label for="unit" class="form-label">Vendido por</label>
+                        <select id="unit" wire:model.live="unit" class="form-select @error('unit') is-invalid @enderror" aria-describedby="unitHelp" @disabled($unitLocked)>
+                            @foreach (\App\Support\Quantity::UNITS as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div id="unitHelp" class="form-text">
+                            @if ($unitLocked)
+                                Não muda depois que o produto tem movimentação.
+                            @elseif ($fractional)
+                                Preço, custo e estoque por {{ $unit === 'm' ? 'metro' : 'quilo' }}. Na venda, informe {{ $unit === 'm' ? 'os metros' : 'o peso' }} (ex.: 1,5).
+                            @else
+                                Metro para tecidos e fitas; quilo para granel.
+                            @endif
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
                         <label for="warrantyMonths" class="form-label">Garantia (meses)</label>
                         <input id="warrantyMonths" type="number" step="1" min="0" max="120" placeholder="Sem garantia" wire:model="warrantyMonths" class="form-control @error('warrantyMonths') is-invalid @enderror" aria-describedby="warrantyHelp">
                         @error('warrantyMonths') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         <div id="warrantyHelp" class="form-text">Sai no comprovante, contada da data da venda.</div>
                     </div>
-                    <div class="col-12 col-md-9 form-check-aligned">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="tracksSerial" wire:model.live="tracksSerial" aria-describedby="serialHelp">
-                            <label class="form-check-label" for="tracksSerial">Controlar número de série</label>
+                    @unless ($fractional)
+                        <div class="col-12 col-md-6 form-check-aligned">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="tracksSerial" wire:model.live="tracksSerial" aria-describedby="serialHelp">
+                                <label class="form-check-label" for="tracksSerial">Controlar número de série</label>
+                            </div>
+                            <div id="serialHelp" class="form-text">Cada unidade tem o seu número, informado na entrada e na venda. Para eletrônicos, celulares e ferramentas.</div>
                         </div>
-                        <div id="serialHelp" class="form-text">Cada unidade tem o seu número, informado na entrada e na venda. Para eletrônicos, celulares e ferramentas.</div>
-                    </div>
+                    @endunless
                 </div>
             </div>
         </div>
@@ -161,7 +181,7 @@
                     @if ($canEnterStock && $hasNewRows && ! $tracksSerial)
                         <div class="input-group w-auto">
                             <label for="initialForAll" class="visually-hidden">Estoque inicial para todas as variações novas</label>
-                            <input id="initialForAll" type="number" min="0" step="1" class="form-control grid-medium" placeholder="Qtd." wire:model="initialForAll">
+                            <input id="initialForAll" type="number" min="0" step="{{ $qtyStep }}" class="form-control grid-medium" placeholder="Qtd." wire:model="initialForAll">
                             <button type="button" class="btn btn-light" wire:click="applyInitialStock">Estoque inicial em todas</button>
                         </div>
                     @endif
@@ -211,15 +231,15 @@
                                         <td class="text-nowrap">{{ Money::formatMargin(is_numeric($row['cost_price']) ? $row['cost_price'] : 0, is_numeric($row['sale_price']) ? $row['sale_price'] : 0) }}</td>
                                     @endif
                                     <td>
-                                        <input type="number" step="1" min="0" aria-label="Estoque mínimo de {{ $row['label'] }}" wire:model="rows.{{ $i }}.min_stock" class="form-control form-control-sm grid-small @error('rows.'.$i.'.min_stock') is-invalid @enderror">
+                                        <input type="number" step="{{ $qtyStep }}" min="0" aria-label="Estoque mínimo de {{ $row['label'] }}" wire:model="rows.{{ $i }}.min_stock" class="form-control form-control-sm grid-small @error('rows.'.$i.'.min_stock') is-invalid @enderror">
                                         @error('rows.'.$i.'.min_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </td>
                                     <td>
                                         @if (! $row['id'] && $canEnterStock && ! $tracksSerial)
-                                            <input type="number" step="1" min="0" placeholder="0" aria-label="Estoque inicial de {{ $row['label'] }}" wire:model="rows.{{ $i }}.initial_stock" class="form-control form-control-sm grid-small @error('rows.'.$i.'.initial_stock') is-invalid @enderror">
+                                            <input type="number" step="{{ $qtyStep }}" min="0" placeholder="0" aria-label="Estoque inicial de {{ $row['label'] }}" wire:model="rows.{{ $i }}.initial_stock" class="form-control form-control-sm grid-small @error('rows.'.$i.'.initial_stock') is-invalid @enderror">
                                             @error('rows.'.$i.'.initial_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                         @else
-                                            {{ $row['on_hand'] }}
+                                            {{ \App\Support\Quantity::format($row['on_hand'], $unit) }}
                                         @endif
                                     </td>
                                     <td><input class="form-check-input" type="checkbox" aria-label="{{ $row['label'] }} ativa" wire:model="rows.{{ $i }}.is_active"></td>

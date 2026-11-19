@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProductVariant;
 use App\Support\LabelPrinter;
+use App\Support\Quantity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -27,6 +28,8 @@ class LabelPrintController extends Controller
                     'name' => $variant->product->name,
                     'variant' => $variant->label(),
                     'price' => $variant->sale_price,
+                    // Por metro ou quilo, a etiqueta mostra "/m" ou "/kg" junto do preço.
+                    'per' => Quantity::PER[$variant->product->unit] ?? '',
                     'code' => LabelPrinter::code($variant),
                     'svg' => LabelPrinter::svg($variant),
                 ];

@@ -25,6 +25,11 @@ Como a VPS é compartilhada, evitar processos pesados; a restauração diária r
 - **Número de série**: produto com `tracks_serial` exige um número por unidade em toda movimentação (`StockService::register(..., serials:)`),
   e o `SerialService` muda o status da unidade na mesma transação. Saldo da loja = unidades "em estoque" da loja. Sem saldo negativo e fora do inventário por quantidade.
   A garantia (`warranty_months` do produto) é copiada para `sale_items.warranty_until` na venda.
+- **Venda fracionada**: `products.unit` é `un`, `m` ou `kg` (`App\Support\Quantity`). Em `m`/`kg`, toda quantidade (estoque, vendas,
+  movimentações, mínimo) é inteira em **milésimos**; o preço e o custo são por metro/quilo. Valor da linha só por `Quantity::amount`
+  (o `SaleCalculator` recebe `unit`); em SQL, divida por `Quantity::scaleSql()` e conte peças com `Quantity::piecesSql()`.
+  Exibir sempre com `formatQuantity()`/`Quantity::format`. A unidade é copiada para `sale_items.unit` e só muda sem movimentação.
+  Fracionados não têm número de série nem entram na condicional.
 - Registros históricos (`ActivityLog`, `StockMovement`, `VariantCostHistory`, `CashMovement`, `SerialNumberEvent`) usam a trait `Immutable`: corrigir com novo lançamento, nunca editar.
 - Ações relevantes são auditadas com `AuditLogger`.
 - **Permissões**: catálogo em `config/loja.php` (`modules`, formato `modulo.operacao`), aplicadas com spatie/laravel-permission

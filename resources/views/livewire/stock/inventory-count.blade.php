@@ -63,17 +63,24 @@
                         <tr wire:key="item-{{ $item->id }}-{{ $item->counted_quantity ?? 'x' }}">
                             <td>{{ $item->variant->fullName() }}</td>
                             <td class="text-nowrap">{{ $item->variant->sku }}</td>
-                            <td>{{ $expected ?? '-' }}</td>
+                            <td class="text-nowrap">{{ $expected === null ? '-' : $item->variant->formatQuantity($expected) }}</td>
                             <td>
-                                @if ($inventory->isOpen())
+                                @if ($inventory->isOpen() && $item->variant->product->isFractional())
+                                    <div class="input-group input-group-sm grid-medium">
+                                        <input type="text" inputmode="decimal" autocomplete="off" aria-label="Quantidade contada de {{ $item->variant->fullName() }}, em {{ $item->variant->product->unit === 'm' ? 'metros' : 'quilos' }}"
+                                               value="{{ $item->counted_quantity === null ? '' : \App\Support\Quantity::format($item->counted_quantity, $item->variant->product->unit, false) }}"
+                                               class="form-control text-end" wire:change="saveCount({{ $item->id }}, $event.target.value)">
+                                        <span class="input-group-text">{{ $item->variant->product->unit }}</span>
+                                    </div>
+                                @elseif ($inventory->isOpen())
                                     <input type="number" min="0" step="1" aria-label="Quantidade contada de {{ $item->variant->fullName() }}" value="{{ $item->counted_quantity }}"
                                            class="form-control form-control-sm grid-small" wire:change="saveCount({{ $item->id }}, $event.target.value)">
                                 @else
-                                    {{ $item->counted_quantity ?? 'Não contado' }}
+                                    {{ $item->counted_quantity === null ? 'Não contado' : $item->variant->formatQuantity($item->counted_quantity) }}
                                 @endif
                             </td>
-                            <td @class(['fw-bold', 'text-success' => $difference > 0, 'text-danger' => $difference < 0])>
-                                {{ $difference === null ? '-' : ($difference > 0 ? '+' : '').$difference }}
+                            <td @class(['fw-bold', 'text-nowrap', 'text-success' => $difference > 0, 'text-danger' => $difference < 0])>
+                                {{ $difference === null ? '-' : ($difference > 0 ? '+' : '').$item->variant->formatQuantity($difference) }}
                             </td>
                         </tr>
                     @empty

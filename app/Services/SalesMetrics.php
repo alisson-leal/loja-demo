@@ -8,6 +8,7 @@ use App\Models\SaleItem;
 use App\Models\SalePayment;
 use App\Models\SaleReturn;
 use App\Support\Money;
+use App\Support\Quantity;
 use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Builder;
@@ -104,9 +105,10 @@ class SalesMetrics
                 ->join('products', 'products.id', '=', 'product_variants.product_id')
                 ->whereIn('products.category_id', Category::idsIncludingChildren($categoryId)))
             ->groupBy('sale_items.product_variant_id', 'sale_items.description')
-            ->orderByDesc(DB::raw('SUM(sale_items.quantity - sale_items.returned_quantity)'))
+            // Por metro ou quilo, cada venda conta como uma peça no ranking (a quantidade fica em milésimos).
+            ->orderByDesc(DB::raw('SUM('.Quantity::piecesSql('(sale_items.quantity - sale_items.returned_quantity)', 'sale_items.unit').')'))
             ->limit($limit)
-            ->selectRaw('sale_items.description as description, SUM(sale_items.quantity - sale_items.returned_quantity) as quantity, SUM(sale_items.total - COALESCE((SELECT SUM(ri.amount) FROM sale_return_items ri WHERE ri.sale_item_id = sale_items.id), 0)) as total')
+            ->selectRaw('sale_items.description as description, MAX(sale_items.unit) as unit, SUM(sale_items.quantity - sale_items.returned_quantity) as quantity, SUM(sale_items.total - COALESCE((SELECT SUM(ri.amount) FROM sale_return_items ri WHERE ri.sale_item_id = sale_items.id), 0)) as total')
             ->toBase()
             ->get();
     }

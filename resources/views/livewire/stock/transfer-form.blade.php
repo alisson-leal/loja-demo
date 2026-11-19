@@ -28,12 +28,18 @@
                                         <td>
                                             @if ($variant->product->tracks_serial)
                                                 <span class="fw-bold">{{ $quantity }}</span>
+                                            @elseif ($variant->product->isFractional())
+                                                <div class="input-group input-group-sm grid-medium">
+                                                    <label for="qty-{{ $id }}" class="visually-hidden">Quantidade em {{ $variant->product->unit === 'm' ? 'metros' : 'quilos' }} de {{ $variant->fullName() }}</label>
+                                                    <input id="qty-{{ $id }}" type="text" inputmode="decimal" autocomplete="off" placeholder="0,000" class="form-control text-end" wire:model.live.debounce.400ms="items.{{ $id }}">
+                                                    <span class="input-group-text">{{ $variant->product->unit }}</span>
+                                                </div>
                                             @else
                                                 <label for="qty-{{ $id }}" class="visually-hidden">Quantidade de {{ $variant->fullName() }}</label>
                                                 <input id="qty-{{ $id }}" type="number" min="1" class="form-control form-control-sm grid-small" wire:model.live.debounce.400ms="items.{{ $id }}">
                                             @endif
                                         </td>
-                                        <td @class(['text-danger' => (int) $quantity > $here])>{{ $here }}</td>
+                                        <td @class(['text-nowrap', 'text-danger' => $quantities[$id] > $here])>{{ $variant->formatQuantity($here) }}</td>
                                         <td class="text-end"><button type="button" class="btn btn-sm btn-light text-danger" wire:click="remove({{ $id }})" aria-label="Remover {{ $variant->fullName() }}"><i class="bi bi-trash" aria-hidden="true"></i></button></td>
                                     </tr>
                                 @endif
@@ -60,7 +66,7 @@
                     <label for="notes" class="form-label">Observação</label>
                     <textarea id="notes" rows="2" maxlength="500" class="form-control mb-3" wire:model="notes"></textarea>
 
-                    <p><strong>{{ array_sum(array_map('intval', $items)) }}</strong> peça(s)</p>
+                    <p><strong>{{ $pieces }}</strong> peça(s)</p>
                     <button type="submit" class="btn btn-primary" wire:loading.attr="disabled" wire:confirm="Enviar as peças? Elas saem do estoque desta loja agora.">Enviar transferência</button>
                 </div>
             </form>

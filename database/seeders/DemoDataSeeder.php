@@ -50,6 +50,7 @@ use App\Support\CurrentStore;
 use App\Support\CustomerFilter;
 use App\Support\Money;
 use App\Support\PermissionCatalog;
+use App\Support\Quantity;
 use App\Support\SaleCalculator;
 use App\Support\StoreSegment;
 use Carbon\CarbonImmutable;
@@ -170,6 +171,16 @@ class DemoDataSeeder extends Seeder
 
     /** @var list<string> números de série no estoque da loja principal */
     private array $serialUnits = [];
+
+    /**
+     * Produtos vendidos por metro ou quilo (fora do sorteio das vendas comuns).
+     * Quantidades em milésimos (ver App\Support\Quantity).
+     *
+     * @var array<int, array{price: int, cost: string, unit: string, initial: int, cuts: list<int>}>
+     */
+    private array $fractional = [];
+
+    private ?int $fractionalSupplierId = null;
 
     private int $customerSeq = 0;
 
@@ -476,6 +487,78 @@ class DemoDataSeeder extends Seeder
         }
 
         $this->serialProduct($categories['Acessórios']->id);
+        $this->fractionalProducts();
+    }
+
+    /** Tecido e fita por metro, bala a granel por quilo: mostram a venda fracionada. */
+    private function fractionalProducts(): void
+    {
+        $this->fractionalSupplierId = app(CatalogService::class)->saveSupplier(null, [
+            'name' => 'Armarinho e Festa Bom Preço Ltda', 'contact_name' => $this->pick(self::FIRST_NAMES).' '.$this->pick(self::LAST_NAMES),
+            'phone' => $this->phone(), 'whatsapp' => $this->phone(), 'email' => 'vendas@armarinhobompreco.example.com',
+            'city' => 'Teresina', 'state' => 'PI', 'is_active' => true,
+        ])->id;
+
+        $fabrics = app(CatalogService::class)->saveCategory(null, 'Tecidos e Aviamentos', null, true);
+        $party = app(CatalogService::class)->saveCategory(null, 'Festa e Lembrancinhas', null, true);
+
+        $items = [
+            // nome, categoria, unidade, preço, custo, estoque inicial e cortes vendidos (milésimos)
+            ['Tecido Tricoline Infantil Estampado', $fabrics->id, Quantity::METER, '24.90', '11.50', 60000, [500, 1000, 1000, 1500, 2000, 3000]],
+            ['Fita de Cetim 22 mm', $fabrics->id, Quantity::METER, '2.50', '0.90', 200000, [1000, 2000, 3000, 5000]],
+            ['Bala de Goma Sortida (granel)', $party->id, Quantity::KILO, '49.90', '24.00', 15000, [150, 250, 300, 500, 1000]],
+        ];
+
+        foreach ($items as [$name, $categoryId, $unit, $price, $cost, $initial, $cuts]) {
+            $product = app(ProductService::class)->save($this->users['admin'], null, [
+                'name' => $name,
+                'description' => "{$name}, vendido por ".($unit === Quantity::METER ? 'metro' : 'quilo').'. Produto fictício da loja de demonstração.',
+                'category_id' => $categoryId,
+                'brand_id' => null,
+                'supplier_id' => $this->fractionalSupplierId,
+                'sale_price' => $price,
+                'cost_price' => $cost,
+                'is_active' => true,
+                'internal_code' => null,
+                'sku' => null,
+                'unit' => $unit,
+            ], [[
+                'id' => null, 'value_ids' => [], 'sku' => null, 'barcode' => $this->ean(++$this->barcodeSeq),
+                'sale_price' => $price, 'cost_price' => $cost, 'min_stock' => intdiv($initial, 5), 'is_active' => true,
+            ]]);
+
+            $this->fractional[$product->variants()->value('id')] = [
+                'price' => Money::toCents($price), 'cost' => $cost, 'unit' => $unit, 'initial' => $initial, 'cuts' => $cuts,
+            ];
+        }
+    }
+
+    /** Vende um corte de tecido, fita ou bala a granel na loja principal. */
+    private function sellFraction(array $sellers): void
+    {
+        $seller = collect($sellers)->first(fn (User $user) => $this->home($user) === $this->mainId);
+        $id = $this->fractional ? $this->pick(array_keys($this->fractional)) : null;
+
+        if (! $seller || ! $id) {
+            return;
+        }
+
+        $info = $this->fractional[$id];
+        $quantity = $this->pick($info['cuts']);
+
+        // Sempre sobra estoque para a demonstração.
+        if ($this->stockAt($this->mainId, $id) - $quantity < intdiv($info['initial'], 4)) {
+            return;
+        }
+
+        $total = Quantity::amount($info['price'], $quantity, $info['unit']);
+
+        try {
+            app(SaleService::class)->finalize($seller, [['variant_id' => $id, 'quantity' => $quantity, 'discount' => 0]],
+                $this->payments($total), $this->chance(50) ? $this->pick($this->customerPool) : null, 0, null, (string) Str::uuid());
+            $this->addStock($this->mainId, $id, -$quantity);
+        } catch (BusinessRuleException) {
+        }
     }
 
     /** Relógio com número de série e garantia: mostra o controle por unidade e a consulta de garantia. */
@@ -540,6 +623,16 @@ class DemoDataSeeder extends Seeder
 
         $this->registerPurchases($items, $start, 'Estoque inicial');
 
+        if ($this->fractional) {
+            $this->registerPurchases([$this->fractionalSupplierId => array_map(fn (int $id) => [
+                'variant_id' => $id, 'quantity' => $this->fractional[$id]['initial'], 'unit_cost' => $this->fractional[$id]['cost'], 'unit' => $this->fractional[$id]['unit'],
+            ], array_keys($this->fractional))], $start, 'Estoque inicial');
+
+            foreach ($this->fractional as $id => $info) {
+                $this->addStock($this->mainId, $id, $info['initial']);
+            }
+        }
+
         if ($this->serialVariantId) {
             $this->serialUnits = array_map(fn (int $n) => sprintf('TTK%s%04d', $start->format('ym'), $n), range(1, 8));
             $this->registerPurchases([$this->serialSupplierId => [[
@@ -557,7 +650,7 @@ class DemoDataSeeder extends Seeder
             $document = 'NF '.mt_rand(10000, 99999);
             app(StockEntryService::class)->register($this->users['estoque'], $supplierId, $document, $note, $items);
 
-            $total = array_sum(array_map(fn ($i) => Money::toCents($i['unit_cost']) * $i['quantity'], $items));
+            $total = array_sum(array_map(fn ($i) => Quantity::amount(Money::toCents($i['unit_cost']), $i['quantity'], $i['unit'] ?? Quantity::UNIT), $items));
             app(PayableService::class)->create([
                 'description' => $document.' - '.Supplier::whereKey($supplierId)->value('name'),
                 'expense_category_id' => $merchandise,
@@ -795,6 +888,11 @@ class DemoDataSeeder extends Seeder
         if (count($this->serialUnits) > 3 && $this->chance(5)) {
             $this->at($day->setTime(mt_rand(10, 18), mt_rand(0, 59)));
             $this->sellSerialUnit($sellers);
+        }
+
+        if ($this->chance(14)) {
+            $this->at($day->setTime(mt_rand(10, 18), mt_rand(0, 59)));
+            $this->sellFraction($sellers);
         }
 
         if (in_array($day->dayOfWeekIso, [2, 4, 6], true) && $this->chance(45)) {

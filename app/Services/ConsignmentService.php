@@ -53,6 +53,12 @@ class ConsignmentService
 
             foreach ($items as $item) {
                 $variant = ProductVariant::with(['product', 'values.attribute'])->findOrFail($item['variant_id']);
+
+                // Tecido cortado ou produto pesado não volta para a prateleira como saiu.
+                if ($variant->product->isFractional()) {
+                    throw new BusinessRuleException("{$variant->fullName()} é vendido por {$variant->product->unitLabel()} e não entra na condicional.");
+                }
+
                 $line = ConsignmentItem::create([
                     'consignment_id' => $consignment->id,
                     'product_variant_id' => $variant->id,

@@ -62,7 +62,7 @@
                         <div class="variant">{{ $label['variant'] }}</div>
                     @endif
                     @if ($showPrice)
-                        <div class="price">{{ \App\Support\Money::format($label['price']) }}</div>
+                        <div class="price">{{ \App\Support\Money::format($label['price']) }}{{ $label['per'] ?? '' }}</div>
                     @endif
                     <div class="barcode">{!! $label['svg'] !!}</div>
                     <div class="code">{{ $label['code'] }}</div>

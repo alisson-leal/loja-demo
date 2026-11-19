@@ -53,6 +53,11 @@
                             <td>
                                 @if ($item['tracks'])
                                     <span class="fw-bold" id="qty-{{ $i }}">{{ $item['quantity'] }}</span>
+                                @elseif ($item['unit'] ?? null)
+                                    <div class="input-group input-group-sm grid-medium has-validation">
+                                        <input type="text" inputmode="decimal" autocomplete="off" placeholder="0,000" aria-label="Quantidade em {{ $item['unit'] === 'm' ? 'metros' : 'quilos' }} de {{ $item['label'] }}" wire:model="items.{{ $i }}.quantity" class="form-control text-end @error('items.'.$i.'.quantity') is-invalid @enderror">
+                                        <span class="input-group-text">{{ $item['unit'] }}</span>
+                                    </div>
                                 @else
                                     <input type="number" min="1" step="1" aria-label="Quantidade de {{ $item['label'] }}" wire:model="items.{{ $i }}.quantity" class="form-control form-control-sm grid-small @error('items.'.$i.'.quantity') is-invalid @enderror">
                                 @endif
@@ -60,6 +65,7 @@
                             </td>
                             @if ($canSeeCost)
                                 <td>
+                                    @if ($item['unit'] ?? null) <div class="small text-body-secondary">por {{ $item['unit'] === 'm' ? 'metro' : 'quilo' }}</div> @endif
                                     <input type="number" min="0" step="0.01" aria-label="Custo de {{ $item['label'] }}" wire:model="items.{{ $i }}.unit_cost" class="form-control form-control-sm grid-medium @error('items.'.$i.'.unit_cost') is-invalid @enderror">
                                     @error('items.'.$i.'.unit_cost') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </td>

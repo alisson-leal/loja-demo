@@ -77,8 +77,9 @@
                                 @unless (\App\Support\Money::equals($product->price_min, $product->price_max))
                                     a {{ \App\Support\Money::format($product->price_max) }}
                                 @endunless
+                                {{ \App\Support\Quantity::PER[$product->unit] ?? '' }}
                             </td>
-                            <td>{{ (int) $product->stock_total }}</td>
+                            <td class="text-nowrap">{{ $product->formatQuantity($product->stock_total) }}</td>
                             <td><span @class(['badge', 'text-bg-success' => $product->is_active, 'text-bg-secondary' => ! $product->is_active])>{{ $product->is_active ? 'Ativo' : 'Inativo' }}</span></td>
                             @can('produtos.editar')
                                 <td class="text-end"><a href="{{ route('products.edit', $product->id) }}" class="btn btn-sm btn-outline-primary">Editar</a></td>

@@ -33,7 +33,7 @@
                                 <tr wire:key="item-{{ $item->id }}">
                                     <td>
                                         {{ $item->description }}
-                                        <div class="small text-body-secondary">{{ $item->sku }}@if ($item->returned_quantity) · {{ $item->returned_quantity }} devolvido(s)@endif</div>
+                                        <div class="small text-body-secondary">{{ $item->sku }}@if ($item->returned_quantity) · {{ $item->formatQuantity($item->returned_quantity) }} devolvido{{ $item->isFractional() ? '' : '(s)' }}@endif</div>
                                         @if ($item->serials)
                                             <div class="small text-break">Nº de série: {{ implode(', ', $item->serials) }}</div>
                                         @endif
@@ -41,8 +41,8 @@
                                             <div class="small {{ $item->underWarranty() ? 'text-success' : 'text-body-secondary' }}">Garantia até {{ $item->warranty_until->format('d/m/Y') }}{{ $item->underWarranty() ? '' : ' (vencida)' }}</div>
                                         @endif
                                     </td>
-                                    <td>{{ $item->quantity }}</td>
-                                    <td class="text-nowrap">{{ Money::format($item->unit_price) }}</td>
+                                    <td class="text-nowrap">{{ $item->formatQuantity() }}</td>
+                                    <td class="text-nowrap">{{ Money::format($item->unit_price) }}{{ \App\Support\Quantity::PER[$item->unit] ?? '' }}</td>
                                     <td class="text-nowrap">{{ Money::format($item->discount) }}</td>
                                     <td class="text-end text-nowrap fw-bold">{{ Money::format($item->total) }}</td>
                                 </tr>
@@ -79,7 +79,7 @@
                                 <div class="d-flex justify-content-between"><strong>{{ $return->created_at->format('d/m/Y H:i') }} · {{ $return->user->name }}</strong><strong>{{ Money::format($return->total) }}</strong></div>
                                 <div class="small">
                                     @foreach ($return->items as $returned)
-                                        {{ $returned->quantity }}x {{ $returned->saleItem->description }}{{ $returned->restocked ? '' : ' (não voltou ao estoque)' }}@if (! $loop->last), @endif
+                                        {{ $returned->saleItem->isFractional() ? $returned->saleItem->formatQuantity($returned->quantity) : $returned->quantity.'x' }} {{ $returned->saleItem->description }}{{ $returned->restocked ? '' : ' (não voltou ao estoque)' }}@if (! $loop->last), @endif
                                     @endforeach
                                 </div>
                                 <div class="small text-body-secondary">
